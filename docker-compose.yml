@@ -1,0 +1,57 @@
+# ---------------------------------------------------------------------------
+# RootsVida TMS — local development stack.
+#
+# Brings up the whole Phase 1 environment with one command:
+#     docker compose up -d
+#
+# Services:
+#   db     PostgreSQL 16 with pg_trgm, btree_gist, citext (and pgvector, since
+#          the pgvector/pgvector image bundles it). Extensions are CREATEd by
+#          Alembic migrations, not here.
+#   minio  S3-compatible object storage for source documents / generated PDFs.
+#
+# NOTE: This machine did not have Docker at scaffold time. Install Docker
+# Desktop (or point DATABASE_URL at a managed Postgres) to run the DB. See
+# docs/TROUBLESHOOTING.md.
+# ---------------------------------------------------------------------------
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: rootsvida-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-rootsvida}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_in_local_env}
+      POSTGRES_DB: ${POSTGRES_DB:-rootsvida_tms}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rootsvida} -d ${POSTGRES_DB:-rootsvida_tms}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: rootsvida-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-rootsvida}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-change_me_in_local_env}
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # console
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
+  minio-data:

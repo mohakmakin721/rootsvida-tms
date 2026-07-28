@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  domain-svc:
+    name: domain-svc · lint · typecheck · test
+    runs-on: ubuntu-latest
+    # A real Postgres so DB-backed tests (Milestone 3+) run in CI.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: rootsvida
+          POSTGRES_PASSWORD: rootsvida
+          POSTGRES_DB: rootsvida_tms
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U rootsvida -d rootsvida_tms"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://rootsvida:rootsvida@localhost:5432/rootsvida_tms
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install domain-svc
+        run: pip install -e "services/domain-svc[dev]"
+      - name: Ruff
+        run: ruff check services/domain-svc ingestion tests
+      - name: Mypy
+        run: mypy services/domain-svc/app
+      - name: Apply migrations
+        run: cd db && alembic upgrade head
+      - name: Pytest
+        run: pytest -q
+
+  web:
+    name: web · lint · build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install
+        run: npm ci
+        working-directory: apps/web
+      - name: Lint
+        run: npm run lint --if-present
+        working-directory: apps/web
+      - name: Build
+        run: npm run build
+        working-directory: apps/web

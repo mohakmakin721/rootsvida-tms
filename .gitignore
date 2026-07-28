@@ -1,0 +1,63 @@
+# ---------------------------------------------------------------------------
+# RootsVida TMS — .gitignore
+# ---------------------------------------------------------------------------
+
+# --- SECRETS ---------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- COMMERCIALLY SENSITIVE SOURCE DATA ------------------------------------
+# The source workbooks contain commission/shortlisting notes ("Give us good
+# commission - do not share with Hotel Owners"). They are IMMUTABLE INPUTS and
+# must NEVER be committed. Ingestion reads them from SOURCE_DATA_DIR at runtime.
+*.xlsx
+*.xls
+Sample_invoice.pdf
+data/source/*
+!data/source/.gitkeep
+
+# --- Python ----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# --- Node / Next.js --------------------------------------------------------
+node_modules/
+.next/
+out/
+npm-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+*.tsbuildinfo
+
+# --- Databases / volumes ---------------------------------------------------
+pgdata/
+minio-data/
+*.sqlite
+*.db
+
+# --- Local tooling config --------------------------------------------------
+.claude/settings.local.json
+
+# --- Editors / OS ----------------------------------------------------------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Build / ingestion artifacts ------------------------------------------
+reports/*.json
+reports/*.html
+!reports/.gitkeep
