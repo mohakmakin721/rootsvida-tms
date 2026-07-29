@@ -21,8 +21,8 @@ REPO_ROOT = DB_DIR.parent
 SVC_DIR = REPO_ROOT / "services" / "domain-svc"
 sys.path.insert(0, str(SVC_DIR))
 
-from app.config import get_settings  # noqa: E402
-from app.models import Base  # noqa: E402
+from app.config import get_settings
+from app.models import Base
 
 config = context.config
 

@@ -40,7 +40,10 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin, Base):
         pg_enum(UserRole, "user_role"),
         nullable=False,
         default=UserRole.READONLY,
+        server_default=UserRole.READONLY.value,
     )
-    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )
 
     org: Mapped[Organization] = relationship(back_populates="users")

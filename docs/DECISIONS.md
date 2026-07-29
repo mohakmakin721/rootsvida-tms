@@ -7,6 +7,20 @@ Format: **ID · Date · Status** — Decision, Context, Consequence.
 
 ---
 
+## D-0008 · 2026-07-29 · Accepted
+**Rates with NULL room_type_id are exempt from the no-overlap exclusion.**
+- **Context:** `rates_no_overlap` (Part 2 §4.1) keys on `room_type_id WITH =`.
+  GiST equality treats NULL as distinct, so two rates with NULL `room_type_id`
+  for the same supplier/meal_plan/occupancy on overlapping dates do NOT conflict.
+  Migrated legacy data often has no room type.
+- **Decision:** Keep the spec's constraint exactly as written (do not coalesce
+  NULLs to a sentinel — that would change semantics). The exclusion protects
+  fully-specified rates; overlaps among room_type-less rates are caught instead by
+  data-quality checks and human review, not the DB constraint.
+- **Consequence:** The constraint is verified to reject overlaps when a room type
+  is set (test_db_canonical). Reviewers must resolve room_type before a rate is
+  marked `verified`; documented in the data dictionary.
+
 ## D-0007 · 2026-07-29 · Accepted
 **No live LLM calls in Phase 1.**
 - **Context:** The plan (Part 1 §1.2 Tier B) designs an LLM-assisted price-parsing

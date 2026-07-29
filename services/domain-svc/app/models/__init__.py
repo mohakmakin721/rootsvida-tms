@@ -8,10 +8,35 @@ Alembic autogenerate.
 
 from __future__ import annotations
 
+from app.models.activity import ActivityRate, GuideRate
 from app.models.base import Base
+from app.models.destination import Destination
+from app.models.misc import MiscCost
 from app.models.org import Organization, User
+from app.models.rate import Rate
+from app.models.supplier import (
+    RoomType,
+    Supplier,
+    SupplierCommercials,
+    SupplierContact,
+)
+from app.models.transport import TransportRate
 
 # Importing model modules here registers their tables on Base.metadata for
-# Alembic autogenerate. Milestone 3+ adds supplier/rate/provenance modules.
+# Alembic autogenerate. Milestone 4 adds source_documents / review_queue.
 
-__all__ = ["Base", "Organization", "User"]
+__all__ = [
+    "ActivityRate",
+    "Base",
+    "Destination",
+    "GuideRate",
+    "MiscCost",
+    "Organization",
+    "Rate",
+    "RoomType",
+    "Supplier",
+    "SupplierCommercials",
+    "SupplierContact",
+    "TransportRate",
+    "User",
+]

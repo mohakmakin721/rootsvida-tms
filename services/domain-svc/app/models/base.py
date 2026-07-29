@@ -10,9 +10,9 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, MetaData, func
+from sqlalchemy import DateTime, ForeignKey, MetaData, func
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, declared_attr, mapped_column
 
 NAMING_CONVENTION = {
     "ix": "ix_%(column_0_label)s",
@@ -59,3 +59,20 @@ class SoftDeleteMixin:
     deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+
+
+class OrgScopedMixin:
+    """`org_id` on every business table (Part 2 §4 convention: "org_id on every
+    table with row-level security"). Indexed for filtering and RLS. The FK to
+    organizations makes the tenant relationship explicit; Phase 3 adds RLS
+    policies keyed on this column without further schema change.
+    """
+
+    @declared_attr
+    def org_id(cls) -> Mapped[uuid.UUID]:  # noqa: N805
+        return mapped_column(
+            UUID(as_uuid=True),
+            ForeignKey("organizations.id"),
+            nullable=False,
+            index=True,
+        )
