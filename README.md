@@ -29,7 +29,7 @@ Monorepo, two deployables + one database (boring on purpose):
 | `services/domain-svc/` | Python 3.12+ / FastAPI / Pydantic v2 — canonical data, review API, provenance |
 | `db/` | Alembic migrations — the single migration source of truth |
 | `ingestion/` | Tiered workbook loaders (mechanical / assisted / bespoke / manual) |
-| `docs/` | Decisions, ERD, data dictionary, ingestion + migration + troubleshooting guides |
+| `docs/` | [Decisions](docs/DECISIONS.md), [data dictionary + ERD](docs/DATA_DICTIONARY.md), [ingestion guide](docs/INGESTION.md), [troubleshooting](docs/TROUBLESHOOTING.md) |
 | `infra/`, `scripts/` | Ops glue |
 
 Stack: **PostgreSQL 16** (`numeric(14,2)` money, `timestamptz`, UUID PKs,
@@ -54,7 +54,7 @@ make web-install && make web  # Next.js review UI on :3000
 
 `make help` lists every target.
 
-## Phase 1 milestones
+## Phase 1 milestones — **complete** ✅
 
 1. Repository + local environment ✅
 2. PostgreSQL + Alembic baseline ✅
@@ -67,7 +67,10 @@ make web-install && make web  # Next.js review UI on :3000
 9. Review queue UI ✅
 10. Deduplication candidates ✅
 11. Repeatable reingestion (`make reingest`) ✅
-12. Tests + documentation ← **next**
+12. Tests + documentation ✅
+
+The data-governance foundation is in place. The deterministic pricing engine,
+documents, WhatsApp, payments and the agent layer are **Phase 2+** (plan §36).
 
 ## Data & privacy
 

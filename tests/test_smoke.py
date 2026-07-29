@@ -35,6 +35,14 @@ def test_openapi_generates() -> None:
     assert resp.json()["info"]["title"].startswith("RootsVida TMS")
 
 
+def test_review_endpoints_registered() -> None:
+    # Regression guard: the review router stays mounted under /api/v1.
+    paths = client.get("/openapi.json").json()["paths"]
+    assert "/api/v1/review-queue" in paths
+    assert "/api/v1/review-queue/{item_id}/approve" in paths
+    assert "/api/v1/review-queue/import-staging" in paths
+
+
 def test_settings_defaults() -> None:
     settings = get_settings()
     assert settings.rv_org_name == "Rootsvida Experiences Private Limited"
