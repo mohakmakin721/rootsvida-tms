@@ -56,6 +56,10 @@ revision: ## New autogenerate revision:  make revision m="message"
 sql: ## Render migrations as offline SQL (no live DB needed)
 	cd db && $(PY) -m alembic upgrade head --sql
 
+.PHONY: seed
+seed: ## Seed the initial organization (idempotent)
+	$(PY) scripts/seed_org.py
+
 # --- ingestion -------------------------------------------------------------
 .PHONY: ingest reingest dq
 ingest: ## Ingest one sheet:  make ingest sheet=Rajasthan

@@ -9,8 +9,9 @@ Alembic autogenerate.
 from __future__ import annotations
 
 from app.models.base import Base
+from app.models.org import Organization, User
 
-# Milestone 3+ will import model modules here so they register on the metadata,
-# e.g.:  from app.models import supplier, rate, provenance  # noqa
+# Importing model modules here registers their tables on Base.metadata for
+# Alembic autogenerate. Milestone 3+ adds supplier/rate/provenance modules.
 
-__all__ = ["Base"]
+__all__ = ["Base", "Organization", "User"]

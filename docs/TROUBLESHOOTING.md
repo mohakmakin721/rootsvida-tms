@@ -32,6 +32,18 @@ on Neon/Supabase — you may set `RV_ENABLE_PGVECTOR=1`.
 > Until a database is reachable, `/health` still returns `ok` (liveness), but
 > `/ready` reports `degraded` (it probes the DB), and DB-backed tests are skipped.
 
+## `password authentication failed` even though the container is healthy
+
+Symptom: `docker exec ... psql` works, but the app/Alembic fail to authenticate
+over TCP. Cause: **a native Postgres already listening on `5432`** intercepts the
+host connection instead of the container. Confirm with:
+```bash
+powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort 5432 -State Listen | ForEach-Object { (Get-Process -Id \$_.OwningProcess).Name }"
+```
+Fix (already applied here): the container is published on **host port 5433**
+(`POSTGRES_HOST_PORT=5433`, `DATABASE_URL=...@localhost:5433/...`). The container's
+internal port is still 5432. In CI there is no such conflict, so CI uses 5432.
+
 ## `make` not found on Windows
 Git Bash may not ship GNU `make`. Either install it (`choco install make`) or run
 the underlying commands from the Makefile directly (they are plain shell).
