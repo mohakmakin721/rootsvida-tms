@@ -20,7 +20,7 @@ from app.api.deps import current_org_id
 from app.db import get_session
 from app.models import ReviewItem
 from app.models.enums import ReviewEntityType, ReviewStatus
-from app.services import review
+from app.services import merge, review
 
 router = APIRouter(prefix="/review-queue", tags=["review"])
 
@@ -119,9 +119,17 @@ def approve_item(
     body = body or DecisionIn()
     item = _require(session, org_id, item_id)
     try:
-        return review.approve(session, item, body.reviewed_by, body.notes)
+        decided = review.approve(session, item, body.reviewed_by, body.notes)
     except review.ReviewStateError as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    # Approving a merge candidate executes the merge in the same transaction
+    # (D-0010: the producer applies its own approved decisions).
+    if decided.entity_type is ReviewEntityType.MERGE_CANDIDATE:
+        try:
+            merge.apply_merge(session, org_id, decided)
+        except merge.MergeError as exc:
+            raise HTTPException(status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    return decided
 
 
 @router.post("/{item_id}/reject", response_model=ReviewItemOut)

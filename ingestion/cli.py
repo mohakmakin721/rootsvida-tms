@@ -3,8 +3,9 @@
 `stage` (M5) reads a sheet and upserts its rows verbatim into `raw_import_rows`.
 `ingest` (M6) does that and then normalises the staged rows into canonical
 `suppliers` (mechanical, no LLM — D-0007). `report` (M7) prints the org's
-data-quality summary. `reingest` remains a labelled scaffold that exits cleanly
-rather than pretending to do work (project rule §44), landing in M11.
+data-quality summary. `dedup` (M10) queues duplicate suppliers as merge
+candidates. `reingest` remains a labelled scaffold that exits cleanly rather than
+pretending to do work (project rule §44), landing in M11.
 """
 
 from __future__ import annotations
@@ -123,6 +124,26 @@ def _run_ingest(sheet: str, file: str | None) -> int:
     return _OK
 
 
+def _run_dedup(threshold: float) -> int:
+    """Detect duplicate suppliers and enqueue them as merge candidates."""
+    from app.db import get_engine
+    from sqlalchemy.orm import Session
+
+    from ingestion.dedup import enqueue_merge_candidates
+    from ingestion.source import resolve_org_id
+
+    with Session(get_engine()) as session:
+        try:
+            org_id = resolve_org_id(session)
+        except LookupError as exc:
+            print(f"[error] {exc}", file=sys.stderr)
+            return _ERROR
+        n = enqueue_merge_candidates(session, org_id, threshold)
+        session.commit()
+    print(f"dedup: enqueued {n} new merge candidate(s) at threshold {threshold}")
+    return _OK
+
+
 def _run_report() -> int:
     """Print the data-quality report for the current org (read-only)."""
     from app.db import get_engine
@@ -154,6 +175,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_ingest.add_argument("--sheet", required=True, help="Sheet name, e.g. Rajasthan")
     p_ingest.add_argument("--file", help="Workbook path (overrides the registry default)")
 
+    p_dedup = sub.add_parser("dedup", help="Queue duplicate suppliers as merge candidates")
+    p_dedup.add_argument("--threshold", type=float, default=0.84,
+                         help="Name-similarity threshold 0..1 (default 0.84)")
+
     sub.add_parser("reingest", help="Rebuild all staging + candidates from source (M11)")
     sub.add_parser("report", help="Print the data-quality report for the current org")
     return parser
@@ -165,6 +190,8 @@ def main(argv: list[str] | None = None) -> int:
         return _run_stage(args.sheet, args.file)
     if args.command == "ingest":
         return _run_ingest(args.sheet, args.file)
+    if args.command == "dedup":
+        return _run_dedup(args.threshold)
     if args.command == "reingest":
         return _stub("reingest", "Milestone 11")
     if args.command == "report":

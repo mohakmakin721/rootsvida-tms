@@ -61,9 +61,11 @@ seed: ## Seed the initial organization (idempotent)
 	$(PY) scripts/seed_org.py
 
 # --- ingestion -------------------------------------------------------------
-.PHONY: ingest reingest dq
+.PHONY: ingest dedup reingest dq
 ingest: ## Ingest one sheet:  make ingest sheet=Rajasthan
 	$(PY) -m ingestion.cli ingest --sheet "$(sheet)"
+dedup: ## Queue duplicate suppliers as merge candidates
+	$(PY) -m ingestion.cli dedup
 reingest: ## Rebuild ALL staging + candidates from source (idempotent)
 	$(PY) -m ingestion.cli reingest
 dq: ## Print data-quality report for the last run

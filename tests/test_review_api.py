@@ -128,3 +128,40 @@ def test_import_staging_enqueues_needs_review(
     resp = client.post("/api/v1/review-queue/import-staging")
     assert resp.status_code == 200
     assert resp.json() == {"created": 2}
+
+
+def test_approving_merge_candidate_executes_merge(
+    api: tuple[TestClient, uuid.UUID], db_session: Session
+) -> None:
+    from app.models import Destination, Supplier
+    from app.models.enums import SupplierKind
+
+    from ingestion.dedup import enqueue_merge_candidates
+
+    client, org_id = api
+    dest = Destination(org_id=org_id, name="Jaipur", state="Rajasthan", country="IN")
+    db_session.add(dest)
+    db_session.flush()
+    for name in ("Utsav Camp", "utsav camp"):
+        db_session.add(
+            Supplier(
+                org_id=org_id, kind=SupplierKind.HOTEL, legal_name=name,
+                display_name=name, destination_id=dest.id,
+            )
+        )
+    db_session.flush()
+    assert enqueue_merge_candidates(db_session, org_id, threshold=0.9) == 1
+
+    items = client.get(
+        "/api/v1/review-queue",
+        params={"status": "pending", "entity_type": "merge_candidate"},
+    ).json()
+    assert len(items) == 1
+    item = items[0]
+
+    resp = client.post(f"/api/v1/review-queue/{item['id']}/approve", json={})
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "approved"
+
+    dup_id = uuid.UUID(str(item["proposed"]["duplicate"]["id"]))
+    assert db_session.get(Supplier, dup_id).deleted_at is not None

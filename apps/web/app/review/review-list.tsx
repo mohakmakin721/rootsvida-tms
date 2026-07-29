@@ -13,7 +13,21 @@ function sourceEntries(item: ReviewItem): [string, unknown][] {
   return Object.entries(obj);
 }
 
+function named(value: unknown): string | null {
+  if (value && typeof value === "object") {
+    const dn = (value as Record<string, unknown>)["display_name"];
+    if (dn) return String(dn);
+  }
+  return null;
+}
+
 function summarise(item: ReviewItem): string {
+  // Merge candidates carry a primary/duplicate pair.
+  if (item.entity_type === "merge_candidate") {
+    const a = named(item.proposed["primary"]);
+    const b = named(item.proposed["duplicate"]);
+    if (a && b) return `${a} ↔ ${b}`;
+  }
   const raw = item.proposed["raw_values"];
   const obj =
     raw && typeof raw === "object" ? (raw as Record<string, unknown>) : item.proposed;

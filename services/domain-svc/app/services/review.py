@@ -73,6 +73,17 @@ def get_item(session: Session, org_id: uuid.UUID, item_id: uuid.UUID) -> ReviewI
     )
 
 
+def get_by_dedupe_key(
+    session: Session, org_id: uuid.UUID, dedupe_key: str
+) -> ReviewItem | None:
+    """Fetch an item by its producer dedupe key (scoped to the org)."""
+    return session.scalar(
+        select(ReviewItem).where(
+            ReviewItem.org_id == org_id, ReviewItem.dedupe_key == dedupe_key
+        )
+    )
+
+
 def list_items(
     session: Session,
     org_id: uuid.UUID,

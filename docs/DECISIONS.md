@@ -7,6 +7,26 @@ Format: **ID · Date · Status** — Decision, Context, Consequence.
 
 ---
 
+## D-0011 · 2026-07-30 · Accepted
+**Dedup is fuzzy name+destination detection; merge is soft, reversible, human-gated.**
+- **Context:** Plan §1.3 wants duplicate suppliers surfaced as merge candidates,
+  never auto-merged. `pg_trgm` is available, but the detection logic benefits from
+  being pure and unit-testable without a live DB.
+- **Decision:** Detection (`ingestion/dedup.py`) compares `normalise(name)` with
+  `difflib.SequenceMatcher` **within the same destination** (threshold default
+  0.84); it is a pure function over (id, name, destination) tuples. Each pair is
+  enqueued as a `merge_candidate` review item (idempotent per pair). Executing a
+  merge (`app/services/merge.py`) happens **only when a human approves** (wired
+  into the approve endpoint per D-0010): the older supplier survives, the
+  duplicate's references (contacts, room types, rates, staged-row links, and
+  commercials when the primary has none) are repointed, and the duplicate is
+  **soft-deleted** — nothing is destroyed, so a merge is reversible by clearing
+  `deleted_at`. Re-applying is a no-op.
+- **Consequence:** `make dedup` surfaced the 4 real Rajasthan duplicate pairs (28
+  Kothi, Utsav Camp, Taj Hari Mahal, Samode House) the M7 report flagged, each at
+  1.0 confidence, idempotent on re-run. pg_trgm can replace difflib at scale
+  without changing the interface.
+
 ## D-0010 · 2026-07-30 · Accepted
 **The review queue is a decision + audit ledger; producers apply the decision.**
 - **Context:** Part 2 §4.6 makes `review_queue` the single human gate. But the
