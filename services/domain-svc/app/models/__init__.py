@@ -13,6 +13,7 @@ from app.models.base import Base
 from app.models.destination import Destination
 from app.models.misc import MiscCost
 from app.models.org import Organization, User
+from app.models.provenance import RawImportRow, SourceDocument
 from app.models.rate import Rate
 from app.models.supplier import (
     RoomType,
@@ -32,8 +33,10 @@ __all__ = [
     "GuideRate",
     "MiscCost",
     "Organization",
+    "RawImportRow",
     "Rate",
     "RoomType",
+    "SourceDocument",
     "Supplier",
     "SupplierCommercials",
     "SupplierContact",

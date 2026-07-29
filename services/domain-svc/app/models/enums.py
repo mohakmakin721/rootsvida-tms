@@ -108,6 +108,36 @@ class ReviewStatus(StrEnum):
     EDITED = "edited"
 
 
+class SourceKind(StrEnum):
+    """Origin of a source document (Part 2 §4.6, plan §13)."""
+
+    LEGACY_XLSX = "legacy_xlsx"
+    VENDOR_EMAIL = "vendor_email"
+    RATE_CARD_PDF = "rate_card_pdf"
+    WHATSAPP_IMAGE = "whatsapp_image"
+
+
+class ParserStrategy(StrEnum):
+    """How a given sheet is ingested (plan §20)."""
+
+    MECHANICAL = "mechanical"
+    ASSISTED = "assisted"
+    BESPOKE = "bespoke"
+    MANUAL = "manual"
+
+
+class RawParseStatus(StrEnum):
+    """Classification of a staged raw row (plan §17, §32). Not the same as the
+    canonical rate lifecycle — this is about how far ingestion got with the row."""
+
+    PENDING = "pending"
+    PARSED = "parsed"
+    PARTIAL = "partial"
+    NEEDS_REVIEW = "needs_review"
+    REJECTED = "rejected"
+    ERROR = "error"
+
+
 # Names used for the PostgreSQL ENUM types. Referenced by models and migrations
 # so the Python enum and the DB type never drift.
 PG_ENUM_NAMES: dict[type[Enum], str] = {
@@ -121,4 +151,7 @@ PG_ENUM_NAMES: dict[type[Enum], str] = {
     AllocationBasis: "allocation_basis",
     RateLifecycle: "rate_lifecycle",
     ReviewStatus: "review_status",
+    SourceKind: "source_kind",
+    ParserStrategy: "parser_strategy",
+    RawParseStatus: "raw_parse_status",
 }
