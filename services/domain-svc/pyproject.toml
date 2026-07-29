@@ -40,6 +40,17 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
 
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's dependency-injection idiom deliberately calls these in argument
+# defaults (Depends/Query/Path/Body/Header); that is not the B008 anti-pattern.
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Path",
+    "fastapi.Body",
+    "fastapi.Header",
+]
+
 [tool.mypy]
 python_version = "3.12"
 strict = true

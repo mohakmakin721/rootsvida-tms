@@ -7,6 +7,24 @@ Format: **ID · Date · Status** — Decision, Context, Consequence.
 
 ---
 
+## D-0010 · 2026-07-30 · Accepted
+**The review queue is a decision + audit ledger; producers apply the decision.**
+- **Context:** Part 2 §4.6 makes `review_queue` the single human gate. But the
+  concrete producers (dedup merges, rate extraction) land in later milestones,
+  so wiring type-specific "apply approved candidate to canonical" now would be
+  speculative and couple M8 to code that doesn't exist yet.
+- **Decision:** M8 builds the review-queue *mechanism* — table, model, service
+  (`enqueue` / `list` / `get` / `approve` / `reject` / `edit`), and REST API at
+  `/api/v1/review-queue`. Decisions are valid only on a **pending** item (a second
+  decision returns HTTP 409) and record who/when/notes. `enqueue` is idempotent
+  via a nullable `dedupe_key` (unique per org). Applying an approved candidate to
+  canonical is the **producer's** job, implemented alongside each producer (M10
+  merges; future rate extraction). `agent_run_id` exists as a plain nullable
+  column — its FK to `agent_runs` is deferred to the agent layer (Phase 5).
+- **Consequence:** The UI (M9) has a stable, typed API and real content now — the
+  bulk `POST /review-queue/import-staging` enqueues the 5 Rajasthan needs-review
+  rows as supplier candidates. Nothing auto-writes to canonical from the queue.
+
 ## D-0009 · 2026-07-30 · Accepted
 **Property sheets migrate to unverified supplier *prospects*, not rates.**
 - **Context:** The Rajasthan sheet (M6's target) is a property shortlist —

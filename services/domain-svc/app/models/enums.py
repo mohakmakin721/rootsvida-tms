@@ -108,6 +108,16 @@ class ReviewStatus(StrEnum):
     EDITED = "edited"
 
 
+class ReviewEntityType(StrEnum):
+    """What a review_queue item proposes (Part 2 §4.6). Nothing on the untrusted/
+    extraction path writes to canonical directly — it lands here first."""
+
+    RATE = "rate"
+    SUPPLIER = "supplier"
+    TRANSPORT_RATE = "transport_rate"
+    MERGE_CANDIDATE = "merge_candidate"
+
+
 class SourceKind(StrEnum):
     """Origin of a source document (Part 2 §4.6, plan §13)."""
 
@@ -151,6 +161,7 @@ PG_ENUM_NAMES: dict[type[Enum], str] = {
     AllocationBasis: "allocation_basis",
     RateLifecycle: "rate_lifecycle",
     ReviewStatus: "review_status",
+    ReviewEntityType: "review_entity_type",
     SourceKind: "source_kind",
     ParserStrategy: "parser_strategy",
     RawParseStatus: "raw_parse_status",

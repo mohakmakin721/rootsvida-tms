@@ -15,6 +15,7 @@ from app.models.misc import MiscCost
 from app.models.org import Organization, User
 from app.models.provenance import RawImportRow, SourceDocument
 from app.models.rate import Rate
+from app.models.review import ReviewItem
 from app.models.supplier import (
     RoomType,
     Supplier,
@@ -35,6 +36,7 @@ __all__ = [
     "Organization",
     "RawImportRow",
     "Rate",
+    "ReviewItem",
     "RoomType",
     "SourceDocument",
     "Supplier",
