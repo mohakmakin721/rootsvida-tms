@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import date
+from typing import Any
 
 from sqlalchemy import (
     CHAR,
@@ -90,7 +91,7 @@ class Rate(
     valid_to: Mapped[date] = mapped_column(Date, nullable=False)
     season_label: Mapped[str | None] = mapped_column(Text)
     min_nights: Mapped[int] = mapped_column(nullable=False, server_default="1")
-    blackout_dates: Mapped[list | None] = mapped_column(ARRAY(DATERANGE))
+    blackout_dates: Mapped[list[Any] | None] = mapped_column(ARRAY(DATERANGE))
     supersedes_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("rates.id"))
 
     supplier: Mapped[Supplier] = relationship()

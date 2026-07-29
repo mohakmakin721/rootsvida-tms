@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import DateTime, ForeignKey, Integer, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB
@@ -65,7 +66,7 @@ class RawImportRow(UUIDPrimaryKeyMixin, OrgScopedMixin, TimestampMixin, Base):
     sheet_name: Mapped[str | None] = mapped_column(Text)
     row_number: Mapped[int] = mapped_column(Integer, nullable=False)
     # The full row, verbatim, as {column_name: raw_value}. Never destroyed.
-    raw_values: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    raw_values: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     # Stable hash of the raw content — lets a re-run detect an unchanged row.
     row_hash: Mapped[str | None] = mapped_column(Text)
     parser_strategy: Mapped[ParserStrategy | None] = mapped_column(
