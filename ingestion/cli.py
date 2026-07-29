@@ -2,11 +2,9 @@
 
 `stage` (M5) reads a sheet and upserts its rows verbatim into `raw_import_rows`.
 `ingest` (M6) does that and then normalises the staged rows into canonical
-`suppliers` (mechanical, no LLM — D-0007). The rest are still labelled scaffolds
-that exit cleanly rather than pretending to do work (project rule §44):
-
-  - `reingest` — rebuild all staging + candidates from source (M11)
-  - `report`   — data-quality report for the last run (M7)
+`suppliers` (mechanical, no LLM — D-0007). `report` (M7) prints the org's
+data-quality summary. `reingest` remains a labelled scaffold that exits cleanly
+rather than pretending to do work (project rule §44), landing in M11.
 """
 
 from __future__ import annotations
@@ -125,6 +123,25 @@ def _run_ingest(sheet: str, file: str | None) -> int:
     return _OK
 
 
+def _run_report() -> int:
+    """Print the data-quality report for the current org (read-only)."""
+    from app.db import get_engine
+    from sqlalchemy.orm import Session
+
+    from ingestion.quality import build_report, render_report
+    from ingestion.source import resolve_org_id
+
+    with Session(get_engine()) as session:
+        try:
+            org_id = resolve_org_id(session)
+        except LookupError as exc:
+            print(f"[error] {exc}", file=sys.stderr)
+            return _ERROR
+        report = build_report(session, org_id)
+    print(render_report(report))
+    return _OK
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="ingestion.cli", description="RootsVida ingestion")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -138,7 +155,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_ingest.add_argument("--file", help="Workbook path (overrides the registry default)")
 
     sub.add_parser("reingest", help="Rebuild all staging + candidates from source (M11)")
-    sub.add_parser("report", help="Print the data-quality report for the last run (M7)")
+    sub.add_parser("report", help="Print the data-quality report for the current org")
     return parser
 
 
@@ -151,7 +168,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "reingest":
         return _stub("reingest", "Milestone 11")
     if args.command == "report":
-        return _stub("report", "Milestone 7")
+        return _run_report()
     return _NOT_IMPLEMENTED
 
 

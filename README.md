@@ -62,8 +62,8 @@ make web-install && make web  # Next.js review UI on :3000
 4. Source-document / provenance system ✅
 5. Raw ingestion / staging framework ✅
 6. Rajasthan migration (117 rows) end-to-end ✅
-7. Validation + data-quality reporting ← **next**
-8. Review queue backend
+7. Validation + data-quality reporting ✅
+8. Review queue backend ← **next**
 9. Review queue UI
 10. Deduplication candidates
 11. Repeatable reingestion (`make reingest`)
