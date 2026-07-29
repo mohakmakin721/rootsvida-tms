@@ -66,8 +66,8 @@ make web-install && make web  # Next.js review UI on :3000
 8. Review queue backend ✅
 9. Review queue UI ✅
 10. Deduplication candidates ✅
-11. Repeatable reingestion (`make reingest`) ← **next**
-12. Tests + documentation
+11. Repeatable reingestion (`make reingest`) ✅
+12. Tests + documentation ← **next**
 
 ## Data & privacy
 

@@ -1,11 +1,12 @@
 """Ingestion command-line interface.
 
-`stage` (M5) reads a sheet and upserts its rows verbatim into `raw_import_rows`.
-`ingest` (M6) does that and then normalises the staged rows into canonical
-`suppliers` (mechanical, no LLM — D-0007). `report` (M7) prints the org's
-data-quality summary. `dedup` (M10) queues duplicate suppliers as merge
-candidates. `reingest` remains a labelled scaffold that exits cleanly rather than
-pretending to do work (project rule §44), landing in M11.
+All subcommands are live as of Milestone 11:
+  - `stage`    (M5) upsert a sheet's rows verbatim into `raw_import_rows`
+  - `ingest`   (M6) stage + normalise a sheet into canonical `suppliers`
+  - `dedup`    (M10) queue duplicate suppliers as merge candidates
+  - `reingest` (M11) rebuild the whole pipeline from source, idempotently
+  - `report`   (M7) print the org's data-quality summary
+No LLM runs in Phase 1 (D-0007).
 """
 
 from __future__ import annotations
@@ -14,17 +15,8 @@ import argparse
 import sys
 from pathlib import Path
 
-_NOT_IMPLEMENTED = 2
 _ERROR = 1
 _OK = 0
-
-
-def _stub(command: str, milestone: str) -> int:
-    print(
-        f"[NOT IMPLEMENTED] `{command}` is scaffolded but lands in {milestone}.",
-        file=sys.stderr,
-    )
-    return _NOT_IMPLEMENTED
 
 
 def _resolve_workbook(sheet: str, file: str | None) -> Path | None:
@@ -144,6 +136,28 @@ def _run_dedup(threshold: float) -> int:
     return _OK
 
 
+def _run_reingest() -> int:
+    """Rebuild the whole pipeline from source in one idempotent transaction."""
+    from app.db import get_engine
+    from sqlalchemy.orm import Session
+
+    from ingestion.reingest import reingest_all, render_reingest
+
+    with Session(get_engine()) as session:
+        try:
+            report = reingest_all(session)
+            session.commit()
+        except LookupError as exc:
+            session.rollback()
+            print(f"[error] {exc}", file=sys.stderr)
+            return _ERROR
+        except Exception:
+            session.rollback()
+            raise
+    print(render_reingest(report))
+    return _OK
+
+
 def _run_report() -> int:
     """Print the data-quality report for the current org (read-only)."""
     from app.db import get_engine
@@ -179,7 +193,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_dedup.add_argument("--threshold", type=float, default=0.84,
                          help="Name-similarity threshold 0..1 (default 0.84)")
 
-    sub.add_parser("reingest", help="Rebuild all staging + candidates from source (M11)")
+    sub.add_parser("reingest", help="Rebuild all staging + candidates from source")
     sub.add_parser("report", help="Print the data-quality report for the current org")
     return parser
 
@@ -193,10 +207,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "dedup":
         return _run_dedup(args.threshold)
     if args.command == "reingest":
-        return _stub("reingest", "Milestone 11")
+        return _run_reingest()
     if args.command == "report":
         return _run_report()
-    return _NOT_IMPLEMENTED
+    return _ERROR  # unreachable: subparsers are required
 
 
 if __name__ == "__main__":
