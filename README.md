@@ -56,13 +56,13 @@ make web-install && make web  # Next.js review UI on :3000
 
 ## Phase 1 milestones
 
-1. Repository + local environment ← **in progress**
-2. PostgreSQL + Alembic baseline
-3. Canonical schema
-4. Source-document / provenance system
-5. Raw ingestion / staging framework
-6. Rajasthan migration (117 rows) end-to-end
-7. Validation + data-quality reporting
+1. Repository + local environment ✅
+2. PostgreSQL + Alembic baseline ✅
+3. Canonical schema ✅
+4. Source-document / provenance system ✅
+5. Raw ingestion / staging framework ✅
+6. Rajasthan migration (117 rows) end-to-end ✅
+7. Validation + data-quality reporting ← **next**
 8. Review queue backend
 9. Review queue UI
 10. Deduplication candidates

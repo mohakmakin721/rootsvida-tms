@@ -1,11 +1,10 @@
 """Ingestion command-line interface.
 
-`stage` is live as of Milestone 5: it reads one source sheet and upserts its rows
-verbatim into `raw_import_rows` (no canonical writes, no LLM). The remaining
-subcommands are still scaffolds that exit with a labelled message rather than
-pretending to do work (project rule §44):
+`stage` (M5) reads a sheet and upserts its rows verbatim into `raw_import_rows`.
+`ingest` (M6) does that and then normalises the staged rows into canonical
+`suppliers` (mechanical, no LLM — D-0007). The rest are still labelled scaffolds
+that exit cleanly rather than pretending to do work (project rule §44):
 
-  - `ingest`   — staging + normalisation into canonical + review queue (M6)
   - `reingest` — rebuild all staging + candidates from source (M11)
   - `report`   — data-quality report for the last run (M7)
 """
@@ -82,6 +81,50 @@ def _run_stage(sheet: str, file: str | None) -> int:
     return _OK
 
 
+def _run_ingest(sheet: str, file: str | None) -> int:
+    """End-to-end: stage the sheet, then normalise it into canonical suppliers."""
+    from app.db import get_engine
+    from sqlalchemy.orm import Session
+
+    from ingestion.migrate import migrate_sheet
+    from ingestion.staging import stage_sheet
+
+    path = _resolve_workbook(sheet, file)
+    if path is None:
+        print(
+            f"[error] sheet {sheet!r} is not in the registry; pass --file <workbook.xlsx>",
+            file=sys.stderr,
+        )
+        return _ERROR
+    if not path.exists():
+        print(f"[error] workbook not found: {path}", file=sys.stderr)
+        return _ERROR
+
+    with Session(get_engine(), expire_on_commit=False) as session:
+        try:
+            staged = stage_sheet(session, str(path), sheet)
+            migrated = migrate_sheet(session, staged.source_document, sheet)
+            session.commit()
+        except KeyError as exc:
+            session.rollback()
+            print(f"[error] {exc}", file=sys.stderr)
+            return _ERROR
+        except Exception:
+            session.rollback()
+            raise
+
+    s, m = staged.result, migrated
+    print(
+        f"ingested {sheet!r} from {path.name} "
+        f"(source {'created' if staged.source_created else 'reused'} "
+        f"{staged.source_document.id})\n"
+        f"  staged:    inserted={s.inserted} updated={s.updated} unchanged={s.unchanged}\n"
+        f"  canonical: created={m.created} updated={m.updated} "
+        f"partial={m.partial} needs_review={m.needs_review} (of {m.total})"
+    )
+    return _OK
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="ingestion.cli", description="RootsVida ingestion")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -90,8 +133,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_stage.add_argument("--sheet", required=True, help="Sheet name, e.g. Rajasthan")
     p_stage.add_argument("--file", help="Workbook path (overrides the registry default)")
 
-    p_ingest = sub.add_parser("ingest", help="Ingest a single source sheet (M6)")
+    p_ingest = sub.add_parser("ingest", help="Stage + normalise a sheet into canonical")
     p_ingest.add_argument("--sheet", required=True, help="Sheet name, e.g. Rajasthan")
+    p_ingest.add_argument("--file", help="Workbook path (overrides the registry default)")
 
     sub.add_parser("reingest", help="Rebuild all staging + candidates from source (M11)")
     sub.add_parser("report", help="Print the data-quality report for the last run (M7)")
@@ -103,7 +147,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "stage":
         return _run_stage(args.sheet, args.file)
     if args.command == "ingest":
-        return _stub(f"ingest --sheet {args.sheet}", "Milestone 6")
+        return _run_ingest(args.sheet, args.file)
     if args.command == "reingest":
         return _stub("reingest", "Milestone 11")
     if args.command == "report":

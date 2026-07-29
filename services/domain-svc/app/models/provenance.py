@@ -79,5 +79,12 @@ class RawImportRow(UUIDPrimaryKeyMixin, OrgScopedMixin, TimestampMixin, Base):
         server_default=RawParseStatus.PENDING.value,
     )
     notes: Mapped[str | None] = mapped_column(Text)
+    # Forward provenance: the canonical supplier this row normalised to (if any).
+    # Set by the migration/normalisation step (Milestone 6); the idempotency key
+    # that lets a re-run update the existing supplier instead of duplicating it.
+    # Rate rows (from rate cards) will gain their own link in a later milestone.
+    normalized_supplier_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("suppliers.id")
+    )
 
     source_document: Mapped[SourceDocument] = relationship(back_populates="raw_rows")

@@ -7,6 +7,25 @@ Format: **ID · Date · Status** — Decision, Context, Consequence.
 
 ---
 
+## D-0009 · 2026-07-30 · Accepted
+**Property sheets migrate to unverified supplier *prospects*, not rates.**
+- **Context:** The Rajasthan sheet (M6's target) is a property shortlist —
+  name / place / category / type / contact / a rough "Price Range" text /
+  remarks — not a rate card. D-0007 keeps price strings unparsed; the governance
+  rule makes the review queue the only path to a *verified rate*.
+- **Decision:** M6 normalises staged rows **mechanically** (no LLM) into
+  `suppliers` + `supplier_contacts` + `destinations` with `status='prospect'`.
+  **No `rates` rows are created** and no price is asserted — the "Price Range"
+  stays verbatim in `raw_import_rows` as provenance. A row with no usable name is
+  marked `parse_status='needs_review'` and is **not** written to canonical.
+  Idempotency + forward provenance come from a new
+  `raw_import_rows.normalized_supplier_id` link (migration 0004): a re-run updates
+  the same supplier instead of duplicating it.
+- **Consequence:** Canonical suppliers exist before the review-queue backend
+  (M8), while nothing that constitutes a rate/price is auto-published. Verified on
+  the real sheet: 117 rows → 112 prospects (3 partial, 5 needs-review), and
+  `make ingest sheet=Rajasthan` is idempotent on re-run.
+
 ## D-0008 · 2026-07-29 · Accepted
 **Rates with NULL room_type_id are exempt from the no-overlap exclusion.**
 - **Context:** `rates_no_overlap` (Part 2 §4.1) keys on `room_type_id WITH =`.
