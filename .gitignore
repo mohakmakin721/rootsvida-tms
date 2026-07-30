@@ -61,3 +61,8 @@ Thumbs.db
 reports/*.json
 reports/*.html
 !reports/.gitkeep
+
+# --- Local instruction / brief docs (not code; keep out of the repo) ---
+Instructions_until_phase1.txt
+instructions_phase1.docx
+*.docx
