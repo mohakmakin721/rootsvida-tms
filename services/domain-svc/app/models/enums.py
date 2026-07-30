@@ -148,6 +148,25 @@ class RawParseStatus(StrEnum):
     ERROR = "error"
 
 
+class ComponentKind(StrEnum):
+    """What kind of thing an itinerary component is (Part 2 §4.3)."""
+
+    STAY = "stay"
+    TRANSPORT = "transport"
+    ACTIVITY = "activity"
+    GUIDE = "guide"
+    MEAL = "meal"
+    PERMIT = "permit"
+    MISC = "misc"
+
+
+class MarkupBasis(StrEnum):
+    """Markup convention — mirrors pricing.model.MarkupBasis (Part 2 §5)."""
+
+    MARKUP_ON_COST = "markup_on_cost"  # × (1 + m)
+    MARGIN_ON_SELL = "margin_on_sell"  # ÷ (1 − m)
+
+
 class PlaceOfSupply(StrEnum):
     """GST place-of-supply scenario, relative to the seller's state (Part 2 §1.4).
     Determines which tax_rules row applies to a booking."""
@@ -185,4 +204,6 @@ PG_ENUM_NAMES: dict[type[Enum], str] = {
     RawParseStatus: "raw_parse_status",
     PlaceOfSupply: "place_of_supply",
     GstTreatment: "gst_treatment",
+    ComponentKind: "component_kind",
+    MarkupBasis: "markup_basis",
 }
