@@ -29,27 +29,34 @@ Format: **ID · Date · Status** — Decision, Context, Consequence.
   position in particular must be confirmed with a CA; it is overridable per
   booking precisely so a corrected position needs no code change.
 
-## D-0012 · 2026-07-30 · Accepted
-**Free & open-source, self-hostable only until the project is proven.**
-- **Context:** The owner wants zero recurring service spend during build-out;
-  paid/managed services are considered only *after* the project succeeds.
-- **Decision:** Every component must be FOSS and self-hostable on the local
-  machine (or a free tier). This is already true of the whole core stack —
-  **PostgreSQL 16, MinIO (S3-compatible object store), FastAPI, SQLAlchemy,
-  Alembic, Next.js, Playwright** — all open-source, all runnable via
-  `docker compose` with no account or bill. The pricing engine (Phase 2) is pure
-  Python with zero external services. The **only** paid dependency anywhere in
-  the plan is the Anthropic LLM API, which is already **dormant and optional**
-  (D-0007): the system is designed to run fully with every agent switched off, so
-  no feature is gated behind paid AI. When extraction/agents are eventually built,
-  prefer a free/local option (e.g. Ollama with an open model) or keep the paid
-  path opt-in behind `RV_ENABLE_LLM`.
-- **Consequence:** No managed Postgres, no cloud object store, no SaaS, no paid
-  APIs are required to run or develop RootsVida TMS. Migrating any piece to a paid
-  managed service (managed Postgres, hosted LLM, a payment gateway's live keys) is
-  a deliberate, success-gated choice recorded as its own future decision — never a
-  silent dependency. CI stays on free GitHub Actions minutes; deployment, when it
-  comes, targets self-hosting or free tiers first.
+## D-0012 · 2026-07-30 · Accepted (revised 2026-07-30)
+**Cost-conscious: prefer free/OSS, but a paid service is fine when justified —
+always ask first.**
+- **Context:** The owner wants to avoid unnecessary spend that a free option
+  covers, **without** crippling the business by refusing a paid tool that is
+  genuinely needed for reliable operation. (Revises the initial "free-only until
+  proven" stance.)
+- **Decision:**
+  1. **Default to free, open-source, self-hostable** components; don't spend on
+     what a free option already covers to a business-grade standard. The whole
+     core stack already qualifies — **PostgreSQL 16, MinIO, FastAPI, SQLAlchemy,
+     Alembic, Next.js, Playwright** — runnable via `docker compose` with no bill.
+     The Phase-2 pricing engine is pure Python with zero external services.
+  2. A **paid/managed service is justified** when it is *important and effectively
+     unavoidable* — i.e. free alternatives are **not recommended by a reasonable
+     business standard for continued, uninterrupted operations** (reliability,
+     quality, support). Weigh cost against how critical and unavoidable it is.
+  3. **Always ask the owner before adopting or committing to any paid service**,
+     and before incurring spend — present the free options, why they do/don't meet
+     the bar, and the cost, then wait for a yes. Never a silent paid dependency.
+  4. The **Anthropic LLM API is a pre-approved direction** for future itinerary
+     planning (robustness). It stays optional/dormant (`RV_ENABLE_LLM`, D-0007)
+     until built, and is still subject to the ask-before-spend rule.
+- **Consequence:** RootsVida runs and develops today with no paid dependency. Any
+  future paid piece (managed Postgres, hosted/Anthropic LLM, payment gateway live
+  keys, SaaS) is introduced only after an explicit owner yes, recorded as its own
+  decision. CI stays on free GitHub Actions minutes; deployment targets
+  self-hosting / free tiers first, paid where justified.
 
 ## D-0011 · 2026-07-30 · Accepted
 **Dedup is fuzzy name+destination detection; merge is soft, reversible, human-gated.**
