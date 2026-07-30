@@ -22,6 +22,7 @@ from pricing import ENGINE_VERSION
 from pricing.model import (
     ComponentKind,
     Id,
+    MarginOverride,
     PricedQuote,
     PricingInput,
     RoundingPolicy,
@@ -31,6 +32,18 @@ from pricing.model import (
 )
 from pricing.money import Money, money, quantize, round_rupee
 from pricing.tax import split_tax
+
+_FOUR_PLACES = money(1).scaleb(-4)  # 0.0001
+
+
+class MarginBelowFloor(Exception):
+    """Raised when a quote's margin is below the input's `margin_floor` and no
+    override was supplied. Blocks issuance (Part 2 §5)."""
+
+    def __init__(self, margin_pct: Money, floor: Money) -> None:
+        self.margin_pct = margin_pct
+        self.floor = floor
+        super().__init__(f"margin {margin_pct} is below the floor {floor}")
 
 
 @dataclass(frozen=True)
@@ -112,9 +125,9 @@ def compute_costs(inp: PricingInput) -> dict[Id, SegmentCost]:
 # --------------------------------------------------------------------------- #
 
 
-def price(inp: PricingInput) -> PricedQuote:
+def price(inp: PricingInput, *, margin_override: MarginOverride | None = None) -> PricedQuote:
     """Cost → priced quote. Applies markup then GST to each segment's exact base
-    cost, rounds once, and rolls up group total, cost, profit and FX.
+    cost, rounds once, and rolls up group total, cost, profit, margin and FX.
 
     Two rounding modes:
       * NEAREST_1 — `sell = round( markup(base) × (1+gst) )` per segment (the
@@ -123,6 +136,10 @@ def price(inp: PricingInput) -> PricedQuote:
         priced to a round ₹100 gross with the taxable value backed out into a
         `TaxBreakdown` (invoice mode). The ₹100 residual lives in that breakdown's
         rounding line, not in the per-segment numbers.
+
+    Guardrail: if `inp.margin_floor` is set and the true margin (on ex-tax
+    revenue, so GST — a real cost under HSN 998555 without ITC — never inflates
+    it) is below it, raise `MarginBelowFloor` unless a `margin_override` is given.
     """
     gross_mode = inp.rounding is RoundingPolicy.GROSS_NEAREST_100
     costs = compute_costs(inp)
@@ -130,6 +147,7 @@ def price(inp: PricingInput) -> PricedQuote:
     segment_sum = money(0)
     group_gross_exact = money(0)
     total_cost = money(0)
+    revenue_ex_tax = money(0)
 
     for seg in inp.segments:
         cost = costs[seg.id]
@@ -162,6 +180,7 @@ def price(inp: PricingInput) -> PricedQuote:
         segment_sum += seg_group
         group_gross_exact += sell_incl_tax * money(seg.pax)
         total_cost += base * money(seg.pax)
+        revenue_ex_tax += sell_ex_tax * money(seg.pax)
 
     if gross_mode:
         breakdown = split_tax(group_gross_exact, inp.tax_rule)
@@ -169,6 +188,16 @@ def price(inp: PricingInput) -> PricedQuote:
     else:
         breakdown = None
         group_total = segment_sum
+
+    margin_pct = (
+        (revenue_ex_tax - total_cost) / revenue_ex_tax if revenue_ex_tax else money(0)
+    )
+    if (
+        inp.margin_floor is not None
+        and margin_pct < inp.margin_floor
+        and margin_override is None
+    ):
+        raise MarginBelowFloor(margin_pct.quantize(_FOUR_PLACES), inp.margin_floor)
 
     fx = (
         {inp.fx.currency: quantize(group_total / inp.fx.inr_per_unit)}
@@ -180,7 +209,10 @@ def price(inp: PricingInput) -> PricedQuote:
         group_total=group_total,
         total_cost=quantize(total_cost),
         profit=quantize(group_total - total_cost),
+        revenue_ex_tax=quantize(revenue_ex_tax),
+        margin_pct=margin_pct.quantize(_FOUR_PLACES),
         engine_version=ENGINE_VERSION,
         fx=fx,
         tax=breakdown,
+        margin_override=margin_override,
     )

@@ -272,11 +272,28 @@ class TaxBreakdown:
 
 
 @dataclass(frozen=True)
+class MarginOverride:
+    """A recorded decision to issue a quote below the margin floor. The pure
+    engine only carries it; the app enforces that only an Owner may create one
+    (Part 2 §5). A reason is mandatory."""
+
+    reason: str
+    approved_by: str | None = None
+
+    def __post_init__(self) -> None:
+        if not self.reason.strip():
+            raise ValueError("a margin override requires a non-empty reason")
+
+
+@dataclass(frozen=True)
 class PricedQuote:
     segments: tuple[SegmentPrice, ...]
     group_total: Money
     total_cost: Money
     profit: Money
+    revenue_ex_tax: Money  # markup-applied selling price before GST (true revenue)
+    margin_pct: Money  # (revenue_ex_tax − cost) / revenue_ex_tax, as a fraction
     engine_version: str
     fx: Mapping[str, Money] | None = None
     tax: TaxBreakdown | None = None
+    margin_override: MarginOverride | None = None
