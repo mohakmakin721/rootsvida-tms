@@ -5,9 +5,9 @@ This is a faithful development log (what was built, every commit, the commands, 
 decisions, the state) — not a verbatim message transcript. Read this top-to-bottom
 and you have everything to resume.
 
-**As of:** git HEAD `b866cda` · 33 commits · **162 tests passing** · migrations
+**As of:** git HEAD `4e7f9ca` · 35 commits · **179 tests passing** · migrations
 through `0008` · Phase 1 ✅ complete · Phase 2 ✅ complete · **Phase 3 in progress
-(M5 of 10 done)**.
+(M6 of 10 done)**.
 
 ---
 
@@ -119,7 +119,9 @@ Phase 3 — web app: itineraries & quotes (IN PROGRESS):
  5c8a0fd M3 quote issuance + frozen snapshot
  31fc8c9 M4 REST API for projects, itineraries, quotes
  6ca34aa docs: add CONTINUE_HERE handoff/session log
- b866cda M5 self-hosted auth + roles (FOSS) + migration 0008 (users.password_hash)   <-- HEAD
+ b866cda M5 self-hosted auth + roles (FOSS) + migration 0008 (users.password_hash)
+ eddacb8 docs: update CONTINUE_HERE through Phase 3 M5 (auth)
+ 4e7f9ca M6 supplier & rate browser UI (search/filter + freshness badges)   <-- HEAD
 ```
 
 ## 5. Repo layout (where things are)
@@ -127,14 +129,14 @@ Phase 3 — web app: itineraries & quotes (IN PROGRESS):
 | Path | What |
 |---|---|
 | `services/domain-svc/app/models/` | SQLAlchemy models (canonical, provenance, review, tax, itinerary, quote) |
-| `services/domain-svc/app/services/` | `review`, `merge`, `tax` (place-of-supply), `pricing_bridge`, `quote`, `auth` |
+| `services/domain-svc/app/services/` | `review`, `merge`, `tax` (place-of-supply), `pricing_bridge`, `quote`, `auth`, `suppliers` (browse, D-0002-safe), `freshness` (pure badge classifier) |
 | `services/domain-svc/app/security/` | Self-hosted auth primitives: `passwords` (PBKDF2), `tokens` (HMAC) |
-| `services/domain-svc/app/api/v1/` | FastAPI routers: `auth`, `review`, `markup_rules`, `projects`, `itineraries`, `quotes` |
+| `services/domain-svc/app/api/v1/` | FastAPI routers: `auth`, `review`, `suppliers`, `markup_rules`, `projects`, `itineraries`, `quotes` |
 | `services/domain-svc/pricing/` | **Pure** deterministic pricing engine (`money`, `model`, `engine`, `tax`) |
 | `ingestion/` | Ingestion CLI + pipeline (`staging`, `normalize`, `migrate`, `dedup`, `quality`, `reingest`) |
 | `db/migrations/versions/` | Alembic migrations `0001`–`0007` |
-| `apps/web/` | Next.js UI (review queue at `/review`; itinerary/quote screens = Phase 3 M6–10) |
-| `tests/` | 154 tests (pytest, from repo root) |
+| `apps/web/` | Next.js UI (`/review` queue; `/suppliers` browser; itinerary/quote screens = Phase 3 M7–10) |
+| `tests/` | 179 tests (pytest, from repo root) |
 | `docs/` | DECISIONS, DATA_DICTIONARY, INGESTION, PRICING, ITINERARY_DRAFTING, TROUBLESHOOTING, PHASE{1,2}_HANDOFF |
 
 ## 6. Golden facts (must always reproduce)
@@ -164,10 +166,11 @@ self-hosted, dependency-free auth (PBKDF2 + HMAC; no paid auth service)**.
 ## 8. Roadmap — what's next (depth-first, owner's choice)
 
 **Phase 3 done so far:** M1 data model · M2 pricing bridge · M3 quote issuance +
-frozen snapshot · M4 REST API · **M5 auth + roles (FOSS)** ✅.
-**Phase 3 remaining (UI, build order):** **M6 supplier/rate browser UI** (search +
-filter by destination/category, green/amber/red freshness badges) ← next → M7
-itinerary builder UI (day strip + live cost sidebar) → M8 traveller-group editor UI
+frozen snapshot · M4 REST API · M5 auth + roles (FOSS) · **M6 supplier/rate browser
+UI** (search + filter by destination/category/kind/status, green/amber/red freshness
+badges, expandable detail; commercials never exposed, D-0002) ✅.
+**Phase 3 remaining (UI, build order):** **M7 itinerary builder UI** (day strip +
+live cost sidebar) ← next → M8 traveller-group editor UI
 → M9 quote view UI → M10 **project workspace + first-class timeline tracking**
 (status enquiry→quoted→confirmed→operating→closed + travel/quote-validity/payment/
 invoice dates) + exit test (rebuild Jaipur in the UI → golden numbers). As the UI
@@ -191,8 +194,8 @@ Phase 8 hardening.
 ## 10. To resume in a new session, say:
 
 > "Continue RootsVida TMS. Read docs/CONTINUE_HERE.md, docs/DECISIONS.md, and the
-> PHASE1/PHASE2 handoffs. We're on Phase 3, M5 done (HEAD b866cda, 162 tests,
-> migrations through 0008). Start Phase 3 Milestone 6 (supplier & rate browser
+> PHASE1/PHASE2 handoffs. We're on Phase 3, M6 done (HEAD 4e7f9ca, 179 tests,
+> migrations through 0008). Start Phase 3 Milestone 7 (itinerary builder
 > UI)." — then follow the working agreements in §9.
 
 (In a **Claude Code** session on this machine, per-project memory under
