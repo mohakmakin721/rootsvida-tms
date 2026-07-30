@@ -14,7 +14,7 @@ before a `PricingInput` exists.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum, IntEnum
 
 from pricing.money import Money, money
@@ -209,6 +209,14 @@ class PricingInput:
                 raise ValueError(
                     f"segment {s.id!r} references unknown markup rule {s.markup_rule_id!r}"
                 )
+        for stay in self.stays:
+            unknown = stay.present_segment_ids - ids
+            if unknown:
+                raise ValueError(f"stay {stay.id!r} references unknown segment(s) {unknown}")
+        for c in self.components:
+            unknown = c.applies_to - ids
+            if unknown:
+                raise ValueError(f"component {c.id!r} references unknown segment(s) {unknown}")
 
 
 # --------------------------------------------------------------------------- #
