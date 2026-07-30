@@ -7,6 +7,23 @@ Format: **ID · Date · Status** — Decision, Context, Consequence.
 
 ---
 
+## D-0014 · 2026-07-30 · Accepted
+**Self-hosted, dependency-free auth (no paid auth service).**
+- **Context:** Phase 3 needs real login + roles (D-0002 deferred it). The cost
+  policy (D-0012) says prefer FOSS/self-hostable and ask before any paid service;
+  Clerk/Auth0 are paid SaaS and excluded without owner sign-off.
+- **Decision:** Build auth in-house on the existing `users` table, **stdlib only**:
+  passwords via **PBKDF2-HMAC-SHA256** (`app/security/passwords.py`), bearer tokens
+  via **HMAC-SHA256** signing (`app/security/tokens.py`) — no JWT library, no
+  external service. `POST /api/v1/auth/login` mints a token; `current_user` +
+  `require_role(...)` dependencies gate endpoints (owner-only user creation).
+  Secret + token TTL come from settings (`RV_AUTH_SECRET`, set in `.env` for
+  prod). An owner user is seeded (rotate `RV_OWNER_PASSWORD`).
+- **Consequence:** Zero-cost, fully self-hostable auth. Existing org-scoped
+  endpoints keep working via the org dependency; role enforcement is added
+  endpoint-by-endpoint. MFA / OAuth / Postgres RLS can layer on later without a
+  rewrite; the token layer can swap to a vetted JWT lib behind the same call sites.
+
 ## D-0013 · 2026-07-30 · Accepted
 **GST place-of-supply rule set (seller Uttarakhand); rules stored as data.**
 - **Context:** RootsVida is registered in **Uttarakhand** (state code 05, GSTIN

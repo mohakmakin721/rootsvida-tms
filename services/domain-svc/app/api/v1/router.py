@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from app.api.v1 import itineraries, markup_rules, projects, quotes, review
+from app.api.v1 import auth, itineraries, markup_rules, projects, quotes, review
 
 api_router = APIRouter(prefix="/api/v1")
 
@@ -19,6 +19,7 @@ def ping() -> dict[str, str]:
     return {"status": "ok", "api": "v1"}
 
 
+api_router.include_router(auth.router)
 api_router.include_router(review.router)
 api_router.include_router(markup_rules.router)
 api_router.include_router(projects.router)

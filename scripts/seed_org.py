@@ -17,8 +17,9 @@ sys.path.insert(0, str(SVC_DIR))
 
 from app.config import get_settings
 from app.db import get_session
-from app.models import Organization, TaxRule
-from app.models.enums import GstTreatment, PlaceOfSupply
+from app.models import Organization, TaxRule, User
+from app.models.enums import GstTreatment, PlaceOfSupply, UserRole
+from app.security.passwords import hash_password
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -89,9 +90,22 @@ def seed_org() -> None:
         session.flush()
 
         rules_changed = seed_tax_rules(session, org.id)
+
+        owner = session.scalar(
+            select(User).where(User.org_id == org.id, User.email == settings.rv_owner_email)
+        )
+        if owner is None:
+            owner = User(org_id=org.id, email=settings.rv_owner_email, name="Owner",
+                         role=UserRole.OWNER, password_hash=hash_password(settings.rv_owner_password))
+            session.add(owner)
+            owner_action = f"created ({settings.rv_owner_email})"
+        else:
+            owner_action = "already present"
+
         print(f"Organization {action}: {org.slug} -> {org.id}")
         print(f"  GST: {org.gstin} ({org.gst_state_name} / {org.gst_state_code})")
         print(f"  Tax rules seeded (3 scenarios; {rules_changed} newly created)")
+        print(f"  Owner user {owner_action} [role=owner] — rotate RV_OWNER_PASSWORD in .env")
         next(gen, None)  # trigger commit in the generator's commit path
     finally:
         gen.close()

@@ -55,8 +55,14 @@ class Settings(BaseSettings):
     domain_svc_host: str = "0.0.0.0"
     domain_svc_port: int = 8000
 
-    # --- auth stub (Phase 1; real auth in Phase 3 — see docs/DECISIONS.md D-0002) ---
+    # --- auth stub (below-ops role default until a user logs in; D-0002) ---
     rv_current_role: Role = "owner"
+
+    # --- self-hosted auth (D-0014). Set RV_AUTH_SECRET in .env for production. ---
+    rv_auth_secret: str = "dev-insecure-secret-change-me-in-.env"
+    rv_auth_token_ttl_hours: int = 12
+    rv_owner_email: str = "owner@rootsvida.local"
+    rv_owner_password: str = "change_me_owner"  # dev seed only; rotate in real use
 
     # --- LLM (Phase 1: DORMANT — see DECISIONS.md D-0007) ---
     anthropic_api_key: str = ""

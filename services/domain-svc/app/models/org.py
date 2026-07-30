@@ -51,5 +51,8 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin, Base):
     is_active: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default="true"
     )
+    # PBKDF2 hash (`pbkdf2_sha256$iters$salt$hash`); NULL = cannot log in yet.
+    # Self-hosted auth, no external service (D-0014).
+    password_hash: Mapped[str | None] = mapped_column(Text)
 
     org: Mapped[Organization] = relationship(back_populates="users")
