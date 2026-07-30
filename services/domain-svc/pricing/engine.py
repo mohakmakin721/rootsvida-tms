@@ -18,14 +18,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from pricing import ENGINE_VERSION
 from pricing.model import (
     ComponentKind,
     Id,
+    PricedQuote,
     PricingInput,
+    RoundingPolicy,
     Segment,
+    SegmentPrice,
     TraceRef,
 )
-from pricing.money import Money, money
+from pricing.money import Money, money, quantize, round_rupee
 
 
 @dataclass(frozen=True)
@@ -100,3 +104,74 @@ def compute_costs(inp: PricingInput) -> dict[Id, SegmentCost]:
     """Exact per-segment base cost for every segment in the input."""
     seg_by_id = {s.id: s for s in inp.segments}
     return {s.id: compute_segment_cost(inp, s, seg_by_id) for s in inp.segments}
+
+
+# --------------------------------------------------------------------------- #
+# the sell pass — markup, tax, round once, roll up
+# --------------------------------------------------------------------------- #
+
+
+def _round_sell(sell_incl_tax: Money, policy: RoundingPolicy) -> Money:
+    """Round one segment's tax-inclusive price per the policy (the ONLY rounding)."""
+    if policy is RoundingPolicy.NEAREST_1:
+        return round_rupee(sell_incl_tax)
+    raise NotImplementedError("gross_nearest_100 pricing lands in Milestone 6")
+
+
+def price(inp: PricingInput) -> PricedQuote:
+    """Cost → priced quote. Applies markup then GST to each segment's exact base
+    cost, rounds once, and rolls up group total, cost, profit and FX.
+
+    `sell = round( markup(base) × (1 + gst) )` per segment (mirroring the
+    workbook's `ROUND(base × (1+markup) × (1+gst), 0)`). Group total sums the
+    already-rounded per-pax sells × pax, so it stays to the rupee.
+    """
+    costs = compute_costs(inp)
+    seg_prices: list[SegmentPrice] = []
+    group_total = money(0)
+    total_cost = money(0)
+
+    for seg in inp.segments:
+        cost = costs[seg.id]
+        base = cost.base_cost
+        rule = inp.markup_rules[seg.markup_rule_id]
+        sell_ex_tax = rule.apply(base)
+        sell_incl_tax = sell_ex_tax * (money(1) + inp.tax_rule.rate)
+        sell_pp = _round_sell(sell_incl_tax, inp.rounding)
+        seg_group = sell_pp * money(seg.pax)
+
+        trace = cost.trace + (
+            TraceRef("markup", f"{rule.basis.value} @ {rule.rate}", sell_ex_tax - base),
+            TraceRef("tax", f"gst @ {inp.tax_rule.rate}", sell_incl_tax - sell_ex_tax),
+            TraceRef("rounding", inp.rounding.value, sell_pp - sell_incl_tax),
+        )
+        seg_prices.append(
+            SegmentPrice(
+                segment_id=seg.id,
+                label=seg.label,
+                pax=seg.pax,
+                accommodation=cost.accommodation,
+                shared=cost.shared,
+                direct=cost.direct,
+                base_cost=base,
+                sell_per_pax=sell_pp,
+                group_total=seg_group,
+                trace=trace,
+            )
+        )
+        group_total += seg_group
+        total_cost += base * money(seg.pax)
+
+    fx = (
+        {inp.fx.currency: quantize(group_total / inp.fx.inr_per_unit)}
+        if inp.fx is not None
+        else None
+    )
+    return PricedQuote(
+        segments=tuple(seg_prices),
+        group_total=group_total,
+        total_cost=quantize(total_cost),
+        profit=quantize(group_total - total_cost),
+        engine_version=ENGINE_VERSION,
+        fx=fx,
+    )
