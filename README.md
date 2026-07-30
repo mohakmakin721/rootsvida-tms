@@ -29,7 +29,8 @@ Monorepo, two deployables + one database (boring on purpose):
 | `services/domain-svc/` | Python 3.12+ / FastAPI / Pydantic v2 — canonical data, review API, provenance |
 | `db/` | Alembic migrations — the single migration source of truth |
 | `ingestion/` | Tiered workbook loaders (mechanical / assisted / bespoke / manual) |
-| `docs/` | [Decisions](docs/DECISIONS.md), [data dictionary + ERD](docs/DATA_DICTIONARY.md), [ingestion guide](docs/INGESTION.md), [troubleshooting](docs/TROUBLESHOOTING.md) |
+| `services/domain-svc/pricing/` | Pure deterministic **pricing engine** (Phase 2) — Decimal money, no I/O ([guide](docs/PRICING.md)) |
+| `docs/` | [Decisions](docs/DECISIONS.md), [data dictionary + ERD](docs/DATA_DICTIONARY.md), [ingestion guide](docs/INGESTION.md), [pricing engine](docs/PRICING.md), [troubleshooting](docs/TROUBLESHOOTING.md) |
 | `infra/`, `scripts/` | Ops glue |
 
 Stack: **PostgreSQL 16** (`numeric(14,2)` money, `timestamptz`, UUID PKs,
