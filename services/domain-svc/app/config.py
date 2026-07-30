@@ -33,6 +33,12 @@ class Settings(BaseSettings):
     rv_org_name: str = "Rootsvida Experiences Private Limited"
     rv_org_slug: str = "rootsvida"
 
+    # --- seller GST identity (from Sample_invoice.pdf; drives place-of-supply) ---
+    rv_gstin: str = "05AANCR1978G1Z1"
+    rv_pan: str = "AANCR1978G"
+    rv_gst_state_code: str = "05"  # Uttarakhand
+    rv_gst_state_name: str = "Uttarakhand"
+
     # --- database ---
     database_url: str = (
         "postgresql+psycopg://rootsvida:change_me_in_local_env"

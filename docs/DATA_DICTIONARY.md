@@ -48,6 +48,19 @@ Verbatim staging — one row per source row, never destroyed. Unique on
 `normalized_supplier_id` → `suppliers` (the staging→canonical link that makes
 migration idempotent and traceable).
 
+### `tax_rules`
+The GST place-of-supply rule set as data (D-0013). One row per `PlaceOfSupply`
+scenario, unique per org. Seller is Uttarakhand (05); seeded by
+`scripts/seed_org.py`.
+`scenario` (`PlaceOfSupply`: intra_state | inter_state | international),
+`treatment` (`GstTreatment`: cgst_sgst | igst | export), `gst_rate`,
+`cgst_rate`, `sgst_rate`, `igst_rate` (`numeric(6,4)`), `hsn` ('998555'),
+`rounding_policy` ('gross_nearest_100'), `description`, `is_default`. Resolved by
+`app/services/tax.py` (pure `classify_place_of_supply` + DB lookup +
+`to_pricing_tax_rule` adapter); an explicit override wins. The seller's GST
+identity (`gstin`, `pan`, `gst_state_code`, `gst_state_name`) lives on
+`organizations`.
+
 ### `review_queue`
 The single human gate (Part 2 §4.6). Nothing on the extraction/migration path
 writes canonical directly.
@@ -113,6 +126,8 @@ caught by data-quality checks and human review instead.
 | `RateLifecycle` | raw, candidate, reviewed, verified, stale, expired |
 | `ReviewStatus` | pending, approved, rejected, edited |
 | `ReviewEntityType` | rate, supplier, transport_rate, merge_candidate |
+| `PlaceOfSupply` | intra_state, inter_state, international |
+| `GstTreatment` | cgst_sgst, igst, export |
 | `SourceKind` | legacy_xlsx, vendor_email, rate_card_pdf, whatsapp_image |
 | `ParserStrategy` | mechanical, assisted, bespoke, manual |
 | `RawParseStatus` | pending, parsed, partial, needs_review, rejected, error |

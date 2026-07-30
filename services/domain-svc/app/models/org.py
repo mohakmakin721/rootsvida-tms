@@ -23,6 +23,12 @@ class Organization(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     name: Mapped[str] = mapped_column(Text, nullable=False)
     slug: Mapped[str] = mapped_column(CITEXT, nullable=False, unique=True)
+    # Seller GST identity — drives place-of-supply (Part 2 §1.4, invoice §1.4).
+    # RootsVida: GSTIN 05AANCR1978G1Z1, Uttarakhand (state code 05), PAN AANCR1978G.
+    gstin: Mapped[str | None] = mapped_column(Text)
+    pan: Mapped[str | None] = mapped_column(Text)
+    gst_state_code: Mapped[str | None] = mapped_column(Text)  # '05'
+    gst_state_name: Mapped[str | None] = mapped_column(Text)  # 'Uttarakhand'
 
     users: Mapped[list[User]] = relationship(back_populates="org")
 

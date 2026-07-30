@@ -148,6 +148,24 @@ class RawParseStatus(StrEnum):
     ERROR = "error"
 
 
+class PlaceOfSupply(StrEnum):
+    """GST place-of-supply scenario, relative to the seller's state (Part 2 §1.4).
+    Determines which tax_rules row applies to a booking."""
+
+    INTRA_STATE = "intra_state"  # buyer in the seller's state → CGST + SGST
+    INTER_STATE = "inter_state"  # buyer in another Indian state → IGST
+    INTERNATIONAL = "international"  # buyer outside India
+
+
+class GstTreatment(StrEnum):
+    """How GST is levied on an invoice. Mirrors pricing.model.TaxTreatment values
+    so a DB row maps 1:1 to the pure engine's tax split."""
+
+    CGST_SGST = "cgst_sgst"
+    IGST = "igst"
+    EXPORT = "export"
+
+
 # Names used for the PostgreSQL ENUM types. Referenced by models and migrations
 # so the Python enum and the DB type never drift.
 PG_ENUM_NAMES: dict[type[Enum], str] = {
@@ -165,4 +183,6 @@ PG_ENUM_NAMES: dict[type[Enum], str] = {
     SourceKind: "source_kind",
     ParserStrategy: "parser_strategy",
     RawParseStatus: "raw_parse_status",
+    PlaceOfSupply: "place_of_supply",
+    GstTreatment: "gst_treatment",
 }

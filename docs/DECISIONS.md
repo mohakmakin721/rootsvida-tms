@@ -7,6 +7,28 @@ Format: **ID · Date · Status** — Decision, Context, Consequence.
 
 ---
 
+## D-0013 · 2026-07-30 · Accepted
+**GST place-of-supply rule set (seller Uttarakhand); rules stored as data.**
+- **Context:** RootsVida is registered in **Uttarakhand** (state code 05, GSTIN
+  05AANCR1978G1Z1). Invoices must apply the correct GST treatment by place of
+  supply; the plan (§1.4) flagged this needs a resolver + per-invoice override +
+  CA sign-off. The sample invoice REPL/2627/TP10 charged CGST+SGST to a foreign
+  (Chilean) buyer.
+- **Decision (user-approved 2026-07-30):** three scenarios —
+  - **intra-state** (buyer in Uttarakhand) → CGST 2.5% + SGST 2.5%
+  - **inter-state** (another Indian state) → IGST 5%
+  - **international** (buyer outside India) → CGST 2.5% + SGST 2.5%, the owner's
+    chosen default matching current practice / the sample invoice.
+  The rules live in the **`tax_rules`** table (one row per scenario, HSN 998555 @
+  5%, `gross_nearest_100` rounding), so a treatment/rate can change without a code
+  deploy. `classify_place_of_supply` is a pure function; `resolve_tax_rule` reads
+  the DB row; an explicit override with a logged reason wins. The pure pricing
+  engine consumes whichever `TaxRule` the resolver selects.
+- **Consequence:** place-of-supply is resolved consistently, auditable, and
+  editable as data. **Not tax advice** — the international / export-vs-LUT
+  position in particular must be confirmed with a CA; it is overridable per
+  booking precisely so a corrected position needs no code change.
+
 ## D-0012 · 2026-07-30 · Accepted
 **Free & open-source, self-hostable only until the project is proven.**
 - **Context:** The owner wants zero recurring service spend during build-out;

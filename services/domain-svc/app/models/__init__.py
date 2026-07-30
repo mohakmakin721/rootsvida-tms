@@ -22,6 +22,7 @@ from app.models.supplier import (
     SupplierCommercials,
     SupplierContact,
 )
+from app.models.tax import TaxRule
 from app.models.transport import TransportRate
 
 # Importing model modules here registers their tables on Base.metadata for
@@ -42,6 +43,7 @@ __all__ = [
     "Supplier",
     "SupplierCommercials",
     "SupplierContact",
+    "TaxRule",
     "TransportRate",
     "User",
 ]
