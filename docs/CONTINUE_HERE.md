@@ -5,9 +5,9 @@ This is a faithful development log (what was built, every commit, the commands, 
 decisions, the state) — not a verbatim message transcript. Read this top-to-bottom
 and you have everything to resume.
 
-**As of:** git HEAD `31fc8c9` · 31 commits · **154 tests passing** · migrations
-through `0007` · Phase 1 ✅ complete · Phase 2 ✅ complete · **Phase 3 in progress
-(M4 of 10 done)**.
+**As of:** git HEAD `b866cda` · 33 commits · **162 tests passing** · migrations
+through `0008` · Phase 1 ✅ complete · Phase 2 ✅ complete · **Phase 3 in progress
+(M5 of 10 done)**.
 
 ---
 
@@ -36,7 +36,7 @@ DB-first) → priced Quote (deterministic) → Invoice (GST) → project timelin
 
 - Repo root: `E:\Rootsvida` (Windows; Git Bash + PowerShell). Monorepo.
 - **Postgres 16** in Docker: container `rootsvida-db`, **host port 5433** (a native
-  Postgres owns 5432 — always use 5433). MinIO on 9000/9001.
+  Postgres owns 5432 — always use 5433). MinIO on 9000/9001. Migrations through `0008`.
 - DB: host `localhost`, port **5433**, db `rootsvida_tms`, user `rootsvida`,
   password `change_me_in_local_env`. `DATABASE_URL` is in `.env`.
 - Git identity: Mohak Makin. Work on `master` (solo local repo; all work committed
@@ -67,6 +67,11 @@ cd services/domain-svc && python -m ruff check . && python -m mypy app pricing
 # --- run the app ---
 cd services/domain-svc && python -m uvicorn app.main:app --reload --port 8000   # API :8000 (/docs)
 cd apps/web && npm run dev                     # web UI :3000  (/review works today)
+
+# --- auth (self-hosted; seeded owner user) ---
+curl -s localhost:8000/api/v1/auth/login -H 'content-type: application/json' \
+  -d '{"email":"owner@rootsvida.local","password":"change_me_owner"}'   # -> {token,...}
+# then send: Authorization: Bearer <token>  (rotate RV_OWNER_PASSWORD in .env)
 
 # --- inspect the DB ---
 docker exec -e PGPASSWORD=change_me_in_local_env rootsvida-db \
@@ -112,7 +117,9 @@ Phase 3 — web app: itineraries & quotes (IN PROGRESS):
  f184588 M2 pricing bridge (DB itinerary -> engine; reproduces Jaipur through the DB)
  2361435 docs: itinerary-drafting spec + LLM prompt (dormant/opt-in)
  5c8a0fd M3 quote issuance + frozen snapshot
- 31fc8c9 M4 REST API for projects, itineraries, quotes   <-- HEAD
+ 31fc8c9 M4 REST API for projects, itineraries, quotes
+ 6ca34aa docs: add CONTINUE_HERE handoff/session log
+ b866cda M5 self-hosted auth + roles (FOSS) + migration 0008 (users.password_hash)   <-- HEAD
 ```
 
 ## 5. Repo layout (where things are)
@@ -120,8 +127,9 @@ Phase 3 — web app: itineraries & quotes (IN PROGRESS):
 | Path | What |
 |---|---|
 | `services/domain-svc/app/models/` | SQLAlchemy models (canonical, provenance, review, tax, itinerary, quote) |
-| `services/domain-svc/app/services/` | `review`, `merge`, `tax` (place-of-supply), `pricing_bridge`, `quote` |
-| `services/domain-svc/app/api/v1/` | FastAPI routers: `review`, `markup_rules`, `projects`, `itineraries`, `quotes` |
+| `services/domain-svc/app/services/` | `review`, `merge`, `tax` (place-of-supply), `pricing_bridge`, `quote`, `auth` |
+| `services/domain-svc/app/security/` | Self-hosted auth primitives: `passwords` (PBKDF2), `tokens` (HMAC) |
+| `services/domain-svc/app/api/v1/` | FastAPI routers: `auth`, `review`, `markup_rules`, `projects`, `itineraries`, `quotes` |
 | `services/domain-svc/pricing/` | **Pure** deterministic pricing engine (`money`, `model`, `engine`, `tax`) |
 | `ingestion/` | Ingestion CLI + pipeline (`staging`, `normalize`, `migrate`, `dedup`, `quality`, `reingest`) |
 | `db/migrations/versions/` | Alembic migrations `0001`–`0007` |
@@ -150,16 +158,21 @@ auth deferred · D-0006 source workbooks git-ignored · D-0007 no live LLM in Ph
 1/2 · D-0008 NULL room_type exempt from no-overlap · D-0009 property sheets →
 unverified *prospects*, not rates · D-0010 review queue is a decision ledger ·
 D-0011 dedup is fuzzy + human-gated soft merge · **D-0012 cost-conscious, ask
-before any paid service** · **D-0013 GST place-of-supply rule set**.
+before any paid service** · **D-0013 GST place-of-supply rule set** · **D-0014
+self-hosted, dependency-free auth (PBKDF2 + HMAC; no paid auth service)**.
 
 ## 8. Roadmap — what's next (depth-first, owner's choice)
 
-**Phase 3 remaining:** M5 **auth + roles** (FOSS/self-hosted — replace the
-`RV_CURRENT_ROLE` stub; owner wants no paid auth) → M6 supplier/rate browser UI →
-M7 itinerary builder UI (day strip + live cost sidebar) → M8 traveller-group editor
-UI → M9 quote view UI → M10 **project workspace + first-class timeline tracking**
+**Phase 3 done so far:** M1 data model · M2 pricing bridge · M3 quote issuance +
+frozen snapshot · M4 REST API · **M5 auth + roles (FOSS)** ✅.
+**Phase 3 remaining (UI, build order):** **M6 supplier/rate browser UI** (search +
+filter by destination/category, green/amber/red freshness badges) ← next → M7
+itinerary builder UI (day strip + live cost sidebar) → M8 traveller-group editor UI
+→ M9 quote view UI → M10 **project workspace + first-class timeline tracking**
 (status enquiry→quoted→confirmed→operating→closed + travel/quote-validity/payment/
-invoice dates) + exit test (rebuild Jaipur in the UI → golden numbers).
+invoice dates) + exit test (rebuild Jaipur in the UI → golden numbers). As the UI
+lands, tighten `require_role(...)` onto sensitive endpoints (commercial data,
+issuing quotes).
 **Phase 4:** documents — internal costing XLSX, client proposal PDF, **GST invoice
 PDF** (gapless numbering via a Postgres sequence, immutable, credit-note corrections).
 **Later:** Phase 5 agent layer (itinerary-draft LLM — spec already in
@@ -178,9 +191,9 @@ Phase 8 hardening.
 ## 10. To resume in a new session, say:
 
 > "Continue RootsVida TMS. Read docs/CONTINUE_HERE.md, docs/DECISIONS.md, and the
-> PHASE1/PHASE2 handoffs. We're on Phase 3, M4 done (HEAD 31fc8c9, 154 tests).
-> Start Phase 3 Milestone 5 (auth + roles, FOSS)." — then follow the working
-> agreements in §9.
+> PHASE1/PHASE2 handoffs. We're on Phase 3, M5 done (HEAD b866cda, 162 tests,
+> migrations through 0008). Start Phase 3 Milestone 6 (supplier & rate browser
+> UI)." — then follow the working agreements in §9.
 
 (In a **Claude Code** session on this machine, per-project memory under
 `~/.claude/.../memory/` also persists: product-vision, rootsvida-tms-phase1,
