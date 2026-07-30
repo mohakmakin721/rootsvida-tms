@@ -7,6 +7,28 @@ Format: **ID · Date · Status** — Decision, Context, Consequence.
 
 ---
 
+## D-0012 · 2026-07-30 · Accepted
+**Free & open-source, self-hostable only until the project is proven.**
+- **Context:** The owner wants zero recurring service spend during build-out;
+  paid/managed services are considered only *after* the project succeeds.
+- **Decision:** Every component must be FOSS and self-hostable on the local
+  machine (or a free tier). This is already true of the whole core stack —
+  **PostgreSQL 16, MinIO (S3-compatible object store), FastAPI, SQLAlchemy,
+  Alembic, Next.js, Playwright** — all open-source, all runnable via
+  `docker compose` with no account or bill. The pricing engine (Phase 2) is pure
+  Python with zero external services. The **only** paid dependency anywhere in
+  the plan is the Anthropic LLM API, which is already **dormant and optional**
+  (D-0007): the system is designed to run fully with every agent switched off, so
+  no feature is gated behind paid AI. When extraction/agents are eventually built,
+  prefer a free/local option (e.g. Ollama with an open model) or keep the paid
+  path opt-in behind `RV_ENABLE_LLM`.
+- **Consequence:** No managed Postgres, no cloud object store, no SaaS, no paid
+  APIs are required to run or develop RootsVida TMS. Migrating any piece to a paid
+  managed service (managed Postgres, hosted LLM, a payment gateway's live keys) is
+  a deliberate, success-gated choice recorded as its own future decision — never a
+  silent dependency. CI stays on free GitHub Actions minutes; deployment, when it
+  comes, targets self-hosting or free tiers first.
+
 ## D-0011 · 2026-07-30 · Accepted
 **Dedup is fuzzy name+destination detection; merge is soft, reversible, human-gated.**
 - **Context:** Plan §1.3 wants duplicate suppliers surfaced as merge candidates,
