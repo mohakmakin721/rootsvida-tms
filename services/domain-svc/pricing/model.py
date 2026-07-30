@@ -248,6 +248,30 @@ class SegmentPrice:
 
 
 @dataclass(frozen=True)
+class TaxBreakdown:
+    """The tax split behind an invoice total (Part 2 §4.6).
+
+    Invariant, enforced on construction: taxable + cgst + sgst + igst +
+    rounding_adjustment == total. The `rounding_adjustment` is the (often −0.01)
+    residual that reconciles the tax halves back to the round gross.
+    """
+
+    taxable: Money
+    cgst: Money
+    sgst: Money
+    igst: Money
+    rounding_adjustment: Money
+    total: Money
+
+    def __post_init__(self) -> None:
+        for name in ("taxable", "cgst", "sgst", "igst", "rounding_adjustment", "total"):
+            object.__setattr__(self, name, money(getattr(self, name)))
+        parts = self.taxable + self.cgst + self.sgst + self.igst + self.rounding_adjustment
+        if parts != self.total:
+            raise ValueError(f"tax breakdown does not reconcile: {parts} != {self.total}")
+
+
+@dataclass(frozen=True)
 class PricedQuote:
     segments: tuple[SegmentPrice, ...]
     group_total: Money
@@ -255,3 +279,4 @@ class PricedQuote:
     profit: Money
     engine_version: str
     fx: Mapping[str, Money] | None = None
+    tax: TaxBreakdown | None = None

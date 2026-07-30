@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-import pytest
 from pricing import ENGINE_VERSION
 from pricing.engine import price
 from pricing.model import (
@@ -98,6 +97,8 @@ def test_margin_on_sell_convention() -> None:
     assert quote.segments[0].sell_per_pax == Decimal(12353)
 
 
-def test_gross_nearest_100_not_yet_implemented() -> None:
-    with pytest.raises(NotImplementedError, match="Milestone 6"):
-        price(_input(rounding=RoundingPolicy.GROSS_NEAREST_100))
+def test_gross_nearest_100_prices_to_a_round_gross() -> None:
+    quote = price(_input(rounding=RoundingPolicy.GROSS_NEAREST_100))
+    assert quote.tax is not None
+    assert quote.group_total % Decimal(100) == 0  # a round-hundred gross
+    assert quote.tax.total == quote.group_total  # breakdown reconciles to it

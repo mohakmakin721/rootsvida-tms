@@ -30,6 +30,7 @@ from pricing.model import (
     TraceRef,
 )
 from pricing.money import Money, money, quantize, round_rupee
+from pricing.tax import split_tax
 
 
 @dataclass(frozen=True)
@@ -111,24 +112,23 @@ def compute_costs(inp: PricingInput) -> dict[Id, SegmentCost]:
 # --------------------------------------------------------------------------- #
 
 
-def _round_sell(sell_incl_tax: Money, policy: RoundingPolicy) -> Money:
-    """Round one segment's tax-inclusive price per the policy (the ONLY rounding)."""
-    if policy is RoundingPolicy.NEAREST_1:
-        return round_rupee(sell_incl_tax)
-    raise NotImplementedError("gross_nearest_100 pricing lands in Milestone 6")
-
-
 def price(inp: PricingInput) -> PricedQuote:
     """Cost → priced quote. Applies markup then GST to each segment's exact base
     cost, rounds once, and rolls up group total, cost, profit and FX.
 
-    `sell = round( markup(base) × (1 + gst) )` per segment (mirroring the
-    workbook's `ROUND(base × (1+markup) × (1+gst), 0)`). Group total sums the
-    already-rounded per-pax sells × pax, so it stays to the rupee.
+    Two rounding modes:
+      * NEAREST_1 — `sell = round( markup(base) × (1+gst) )` per segment (the
+        workbook's `ROUND(...)`); the group total sums the rounded per-pax sells.
+      * GROSS_NEAREST_100 — per-pax sells are kept to paise; the group total is
+        priced to a round ₹100 gross with the taxable value backed out into a
+        `TaxBreakdown` (invoice mode). The ₹100 residual lives in that breakdown's
+        rounding line, not in the per-segment numbers.
     """
+    gross_mode = inp.rounding is RoundingPolicy.GROSS_NEAREST_100
     costs = compute_costs(inp)
     seg_prices: list[SegmentPrice] = []
-    group_total = money(0)
+    segment_sum = money(0)
+    group_gross_exact = money(0)
     total_cost = money(0)
 
     for seg in inp.segments:
@@ -137,7 +137,7 @@ def price(inp: PricingInput) -> PricedQuote:
         rule = inp.markup_rules[seg.markup_rule_id]
         sell_ex_tax = rule.apply(base)
         sell_incl_tax = sell_ex_tax * (money(1) + inp.tax_rule.rate)
-        sell_pp = _round_sell(sell_incl_tax, inp.rounding)
+        sell_pp = quantize(sell_incl_tax) if gross_mode else round_rupee(sell_incl_tax)
         seg_group = sell_pp * money(seg.pax)
 
         trace = cost.trace + (
@@ -159,8 +159,16 @@ def price(inp: PricingInput) -> PricedQuote:
                 trace=trace,
             )
         )
-        group_total += seg_group
+        segment_sum += seg_group
+        group_gross_exact += sell_incl_tax * money(seg.pax)
         total_cost += base * money(seg.pax)
+
+    if gross_mode:
+        breakdown = split_tax(group_gross_exact, inp.tax_rule)
+        group_total = breakdown.total
+    else:
+        breakdown = None
+        group_total = segment_sum
 
     fx = (
         {inp.fx.currency: quantize(group_total / inp.fx.inr_per_unit)}
@@ -174,4 +182,5 @@ def price(inp: PricingInput) -> PricedQuote:
         profit=quantize(group_total - total_cost),
         engine_version=ENGINE_VERSION,
         fx=fx,
+        tax=breakdown,
     )
