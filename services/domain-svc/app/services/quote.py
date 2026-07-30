@@ -10,20 +10,19 @@ version (v2 never mutates v1). Immutability is also enforced by a DB trigger.
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from pricing import model as pm
-from pricing.engine import price
-from pricing.money import quantize
-
 from app.models import Itinerary, Quote, QuoteLine
 from app.models.enums import GstTreatment, PlaceOfSupply
 from app.services.pricing_bridge import build_pricing_input
+from pricing import model as pm
+from pricing.engine import price
+from pricing.money import quantize
 
 _HUNDRED = Decimal(100)
 
@@ -168,7 +167,7 @@ def issue_quote(
     the DB trigger makes the quote immutable (only → 'superseded')."""
     if quote.status != "draft":
         raise ValueError(f"only a draft quote can be issued (status={quote.status!r})")
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     quote.status = "issued"
     quote.issued_at = now
     quote.issued_by = issued_by
