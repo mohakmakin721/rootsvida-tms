@@ -1,5 +1,6 @@
 import type {
   Facets,
+  MarkupRule,
   ReviewItem,
   ReviewStatus,
   SupplierPage,
@@ -47,4 +48,13 @@ export async function getSupplierFacets(): Promise<Facets> {
     throw new Error(`Domain service returned ${res.status} ${res.statusText}`);
   }
   return (await res.json()) as Facets;
+}
+
+/** The org's markup rules — the builder assigns one per traveller segment. */
+export async function listMarkupRules(): Promise<MarkupRule[]> {
+  const res = await fetch(`${SERVER_API_BASE}/markup-rules`, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(`Domain service returned ${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as MarkupRule[];
 }

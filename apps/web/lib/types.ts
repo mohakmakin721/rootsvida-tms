@@ -107,3 +107,87 @@ export interface Facets {
   destinations: DestinationFacet[];
   categories: string[];
 }
+
+// --- Itinerary builder + live pricing preview (Phase 3 M7) ---
+
+export type PaxClass = "indian" | "foreign" | "saarc";
+export type Occupancy =
+  | "single"
+  | "double"
+  | "triple"
+  | "extra_adult"
+  | "child_wb"
+  | "child_nb";
+export type MarkupBasis = "markup_on_cost" | "margin_on_sell";
+export type AllocationBasis =
+  | "all_pax"
+  | "by_pax_class"
+  | "per_segment"
+  | "per_pax_direct"
+  | "fixed_group";
+export type ComponentKind =
+  | "stay"
+  | "transport"
+  | "activity"
+  | "guide"
+  | "meal"
+  | "permit"
+  | "misc";
+
+export interface MarkupRule {
+  id: string;
+  label: string;
+  basis: MarkupBasis;
+  rate: string;
+  is_default: boolean;
+}
+
+export interface SegmentDraft {
+  key: string;
+  label: string;
+  pax_class: PaxClass;
+  occupancy: Occupancy;
+  pax_count: number;
+  markup_rule_id: string;
+}
+
+export interface ComponentDraft {
+  kind: ComponentKind;
+  description: string;
+  override_amount: string;
+  override_reason: string;
+  allocation: AllocationBasis;
+  applies_to_segment_keys: string[] | null;
+  applies_to_pax_class: PaxClass | null;
+}
+
+export interface DayDraft {
+  day_number: number;
+  date: string;
+  destination_id: string | null;
+  present_segment_keys: string[];
+  components: ComponentDraft[];
+}
+
+export interface SegmentPreview {
+  label: string;
+  pax: number;
+  base_cost: string;
+  sell_per_pax: string;
+  group_total: string;
+}
+
+export interface PreviewOut {
+  engine_version: string;
+  segments: SegmentPreview[];
+  total_cost: string;
+  group_total: string;
+  profit: string;
+  revenue_ex_tax: string;
+  margin_pct: string;
+  gst_rate: string;
+  gst_treatment: string;
+  fx: Record<string, string> | null;
+  margin_floor: string | null;
+  below_floor: boolean;
+}

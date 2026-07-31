@@ -10,6 +10,19 @@ export default function Home() {
       </p>
       <div className="mt-8 grid gap-4 sm:grid-cols-2">
         <div className="rounded-lg border border-neutral-200 p-5">
+          <h2 className="font-medium">Itinerary builder</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Compose a trip day by day — traveller groups, presence and costs — with
+            a live cost sidebar that reprices as you go.
+          </p>
+          <Link
+            href="/builder"
+            className="mt-4 inline-block rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+          >
+            Open builder →
+          </Link>
+        </div>
+        <div className="rounded-lg border border-neutral-200 p-5">
           <h2 className="font-medium">Supplier &amp; rate browser</h2>
           <p className="mt-1 text-sm text-neutral-500">
             Search the supplier book, filter by destination and category, and open
