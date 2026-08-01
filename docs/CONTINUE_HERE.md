@@ -5,10 +5,10 @@ This is a faithful development log (what was built, every commit, the commands, 
 decisions, the state) — not a verbatim message transcript. Read this top-to-bottom
 and you have everything to resume.
 
-**As of:** git HEAD `c78172c` · 46 commits · **200 tests passing** · migrations
-through `0011` · Phase 1 ✅ complete · Phase 2 ✅ complete · **Phase 3 ✅ complete
-(M10 of 10 — project timeline; exit test green)**. Next: Phase 4 (documents/invoices)
-or Phase 5 (agentic itinerary drafter).
+**As of:** git HEAD `c405b95` · 50 commits · **210 tests passing** · migrations
+through `0012` · Phase 1 ✅ · Phase 2 ✅ · Phase 3 ✅ · **Phase 4 in progress — GST
+invoice done** (record + gapless numbering + immutable + credit notes + PDF).
+Remaining Phase 4: internal costing XLSX, client proposal PDF.
 
 ---
 
@@ -133,22 +133,26 @@ Phase 3 — web app: itineraries & quotes (IN PROGRESS):
  35fbbec M9 frontend — projects & quotes workspace (create/issue/revise, breakdown)
  ca1d182 docs: update CONTINUE_HERE through Phase 3 M9
  3fd9884 M10 backend — first-class project timeline (migration 0011, milestones)
- c78172c M10 frontend — timeline UI (status stepper, travel window, milestones); Phase 3 exit test green   <-- HEAD
+ c78172c M10 frontend — timeline UI (status stepper, travel window, milestones); Phase 3 exit test green
+Phase 4 — documents (IN PROGRESS):
+ 4602504 P4-M1 GST invoice record — gapless numbering + immutable + credit notes (migration 0012)
+ 5857160 P4-M2 invoice PDF (ReportLab) + GET /invoices/{id}/pdf
+ c405b95 P4-M2 frontend — invoices in the project workspace (generate / PDF / credit note)   <-- HEAD
 ```
 
 ## 5. Repo layout (where things are)
 
 | Path | What |
 |---|---|
-| `services/domain-svc/app/models/` | SQLAlchemy models (canonical, provenance, review, tax, itinerary, quote, client, **project_milestone**) |
+| `services/domain-svc/app/models/` | SQLAlchemy models (canonical, provenance, review, tax, itinerary, quote, client, project_milestone, **invoice / document_counter**) |
 | `services/domain-svc/app/services/` | `review`, `merge`, `tax` (place-of-supply), `pricing_bridge`, `quote`, `auth`, `suppliers` (browse, D-0002-safe), `freshness` (pure badge classifier), `itinerary` (build graph from a draft), `preview` (price a draft, savepoint-rollback, persists nothing) |
 | `services/domain-svc/app/security/` | Self-hosted auth primitives: `passwords` (PBKDF2), `tokens` (HMAC) |
-| `services/domain-svc/app/api/v1/` | FastAPI routers: `auth`, `review`, `suppliers`, `markup_rules` (CRUD), `clients`, `projects`, `itineraries`, `quotes`, `pricing` (live preview) |
+| `services/domain-svc/app/api/v1/` | FastAPI routers: `auth`, `review`, `suppliers`, `markup_rules` (CRUD), `clients`, `projects`, `itineraries`, `quotes`, `invoices` (+ PDF), `pricing` (live preview) |
 | `services/domain-svc/pricing/` | **Pure** deterministic pricing engine (`money`, `model`, `engine`, `tax`) |
 | `ingestion/` | Ingestion CLI + pipeline (`staging`, `normalize`, `migrate`, `dedup`, `quality`, `reingest`) |
 | `db/migrations/versions/` | Alembic migrations `0001`–`0007` |
 | `apps/web/` | Next.js UI (`/review` queue; `/suppliers` browser; `/builder` client intake + itinerary builder + live sidebar; `/projects` + `/projects/[id]` quote workspace **with timeline**: status stepper, travel window, milestones) |
-| `tests/` | 200 tests (pytest, from repo root) |
+| `tests/` | 210 tests (pytest, from repo root) |
 | `docs/` | DECISIONS, DATA_DICTIONARY, INGESTION, PRICING, ITINERARY_DRAFTING, TROUBLESHOOTING, PHASE{1,2}_HANDOFF |
 
 ## 6. Golden facts (must always reproduce)
@@ -198,11 +202,19 @@ milestone CRUD; workspace timeline = lifecycle stepper + travel window + milesto
 with overdue flags) ✅. **Phase 3 EXIT TEST GREEN**: golden Jaipur rebuilt through
 the full app reproduces ₹4,03,327 / 12.52% / USD 4,245.55.
 **Phase 3 ✅ COMPLETE (all 10 milestones).**
-**What's next (owner's choice):** Phase 4 (documents — internal costing XLSX,
-client proposal PDF, GST invoice PDF with gapless numbering) OR Phase 5 (agentic
-itinerary drafter — spec in docs/ITINERARY_DRAFTING.md; outputs in the builder's
-input format; still dormant/opt-in). Also outstanding: tighten `require_role(...)`
-onto sensitive endpoints (commercial data, issuing quotes) now the UI has landed.
+**Phase 4 — documents (IN PROGRESS):** **GST invoice ✅** — migration 0012
+(`document_counters` gapless per-org/kind/FY, `invoices` with a reconcile CHECK +
+immutability trigger, `invoice_lines`); `app/services/invoice.py` generates from an
+issued quote (tax via the pure `split_tax`, reproduces golden REPL/2627/TP10),
+credit notes negate + cancel; `app/services/invoice_pdf.py` (ReportLab) renders the
+TAX INVOICE / CREDIT NOTE PDF (number `RV/2026-27/0001`, project code as Ref,
+Rs. + Indian grouping, amount-in-words); `/quotes/{id}/invoice`, `/invoices/{id}`,
+`/invoices/{id}/pdf`, `/invoices/{id}/credit-note`; UI in the project workspace
+(generate / download PDF / credit note). Invoice number format + Ref were owner
+choices. **Remaining Phase 4:** internal costing XLSX (openpyxl), client proposal
+PDF. **Later:** Phase 5 agentic itinerary drafter (dormant; docs/ITINERARY_DRAFTING.md).
+Still outstanding: tighten `require_role(...)` onto sensitive endpoints (commercial
+data, issuing quotes, invoicing).
 (status enquiry→quoted→confirmed→operating→closed + travel/quote-validity/payment/
 invoice dates) + exit test (rebuild Jaipur in the UI → golden numbers). As the UI
 lands, tighten `require_role(...)` onto sensitive endpoints (commercial data,
@@ -225,9 +237,9 @@ Phase 8 hardening.
 ## 10. To resume in a new session, say:
 
 > "Continue RootsVida TMS. Read docs/CONTINUE_HERE.md, docs/DECISIONS.md, and the
-> PHASE1/PHASE2 handoffs. Phase 3 is COMPLETE (HEAD c78172c, 200 tests, migrations
-> through 0011, exit test green). Start Phase 4 (documents/invoices) — or Phase 5
-> (agentic itinerary drafter)." — then follow the working agreements in §9.
+> PHASE1/PHASE2 handoffs. Phase 4 in progress: GST invoice + PDF DONE (HEAD
+> c405b95, 210 tests, migrations through 0012). Continue Phase 4 — internal costing
+> XLSX and the client proposal PDF." — then follow the working agreements in §9.
 
 (In a **Claude Code** session on this machine, per-project memory under
 `~/.claude/.../memory/` also persists: product-vision, rootsvida-tms-phase1,
