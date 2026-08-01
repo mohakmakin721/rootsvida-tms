@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     rv_gst_state_code: str = "05"  # Uttarakhand
     rv_gst_state_name: str = "Uttarakhand"
 
+    # --- invoicing (Phase 4). Numbers are <prefix>/<FY>/<gapless serial>. ---
+    rv_invoice_prefix: str = "RV"
+    rv_seller_address: str = ""  # registered address, printed on the invoice
+    rv_seller_bank_details: str = ""  # bank name / A/C / IFSC for payment
+
     # --- database ---
     database_url: str = (
         "postgresql+psycopg://rootsvida:change_me_in_local_env"
