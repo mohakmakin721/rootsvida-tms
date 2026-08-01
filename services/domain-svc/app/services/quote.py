@@ -106,7 +106,8 @@ def create_quote(
     buyer_country: str | None = "IN",
     tax_override: PlaceOfSupply | None = None,
     rounding: pm.RoundingPolicy = pm.RoundingPolicy.NEAREST_1,
-    fx_inr_per_usd: Decimal | None = None,
+    fx_currency: str = "USD",
+    fx_rate: Decimal | None = None,
     margin_floor: Decimal | None = None,
 ) -> Quote:
     """Price an itinerary and persist a **draft** quote (with snapshot + lines).
@@ -119,8 +120,8 @@ def create_quote(
 
     inp = build_pricing_input(
         session, itinerary_id, buyer_state_code=buyer_state_code, buyer_country=buyer_country,
-        tax_override=tax_override, rounding=rounding, fx_currency="USD",
-        fx_rate=fx_inr_per_usd, margin_floor=margin_floor,
+        tax_override=tax_override, rounding=rounding, fx_currency=fx_currency,
+        fx_rate=fx_rate, margin_floor=margin_floor,
     )
     priced = price(inp)
     taxable, tax_total, gross = _totals(priced)
@@ -133,6 +134,7 @@ def create_quote(
         status="draft",
         gst_rate=quantize(inp.tax_rule.rate * _HUNDRED),
         gst_treatment=GstTreatment(inp.tax_rule.treatment.value),
+        fx_currency=inp.fx.currency if inp.fx is not None else None,
         fx_rate_inr_usd=inp.fx.inr_per_unit if inp.fx is not None else None,
         rounding_policy=inp.rounding.value,
         total_cost=priced.total_cost,

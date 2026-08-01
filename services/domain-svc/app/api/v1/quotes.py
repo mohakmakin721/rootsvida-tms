@@ -28,7 +28,8 @@ class QuoteCreateIn(BaseModel):
     buyer_country: str | None = "IN"
     tax_override: PlaceOfSupply | None = None
     rounding: pm.RoundingPolicy = pm.RoundingPolicy.NEAREST_1
-    fx_inr_per_usd: Decimal | None = None
+    fx_currency: str = "USD"
+    fx_rate: Decimal | None = None
     margin_floor: Decimal | None = None
 
 
@@ -57,6 +58,7 @@ class QuoteOut(BaseModel):
     status: str
     gst_rate: Decimal
     gst_treatment: GstTreatment
+    fx_currency: str | None
     fx_rate_inr_usd: Decimal | None
     rounding_policy: str
     total_cost: Decimal | None

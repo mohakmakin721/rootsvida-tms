@@ -92,6 +92,31 @@ class ItineraryOut(BaseModel):
     days: list[DayOut]
 
 
+class ItineraryBrief(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    project_id: uuid.UUID
+    title: str
+    start_date: date
+    end_date: date
+    version: int
+    status: str
+
+
+@router.get("/projects/{project_id}/itineraries", response_model=list[ItineraryBrief])
+def list_project_itineraries(
+    project_id: uuid.UUID,
+    session: Session = Depends(get_session),
+    org_id: uuid.UUID = Depends(current_org_id),
+) -> list[Itinerary]:
+    return list(session.scalars(
+        select(Itinerary)
+        .where(Itinerary.project_id == project_id, Itinerary.org_id == org_id)
+        .order_by(Itinerary.created_at.desc())
+    ))
+
+
 @router.post("/projects/{project_id}/itineraries", response_model=ItineraryOut,
              status_code=status.HTTP_201_CREATED)
 def create_itinerary(

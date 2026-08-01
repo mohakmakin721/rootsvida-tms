@@ -22,7 +22,7 @@ def _draft(session: Session, **over: object) -> Quote:
     itinerary_id = _seed_jaipur(session)
     kw: dict[str, object] = {
         "buyer_state_code": "05", "buyer_country": "IN",
-        "rounding": pm.RoundingPolicy.NEAREST_1, "fx_inr_per_usd": Decimal(95),
+        "rounding": pm.RoundingPolicy.NEAREST_1, "fx_rate": Decimal(95),
     }
     kw.update(over)
     return create_quote(session, itinerary_id, **kw)  # type: ignore[arg-type]
@@ -90,7 +90,7 @@ def test_revise_supersedes_and_creates_next_version(db_session: Session) -> None
     q1 = _draft(db_session)
     issue_quote(db_session, q1)
     q2 = revise_issued_quote(db_session, q1, buyer_state_code="05", buyer_country="IN",
-                             fx_inr_per_usd=Decimal(95))
+                             fx_rate=Decimal(95))
     assert q1.status == "superseded"
     assert q2.status == "draft"
     assert q2.version == 2

@@ -40,6 +40,9 @@ class Quote(UUIDPrimaryKeyMixin, OrgScopedMixin, TimestampMixin, Base):
     gst_treatment: Mapped[GstTreatment] = mapped_column(
         pg_enum(GstTreatment, "gst_treatment"), nullable=False
     )
+    # The client-facing currency and its rate. `fx_rate_inr_usd` holds INR per one
+    # unit of `fx_currency` (the column name predates multi-currency support, M9).
+    fx_currency: Mapped[str | None] = mapped_column(Text)
     fx_rate_inr_usd: Mapped[Decimal | None] = mapped_column(Numeric(10, 4))
     fx_rate_locked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # nearest_1 | gross_nearest_100

@@ -115,11 +115,27 @@ def test_itinerary_read_back(api: TestClient) -> None:
     assert len(it["days"][4]["present_segment_ids"]) == 2  # day 5 Delhi: foreigners only
 
 
+def test_list_project_itineraries(api: TestClient) -> None:
+    itinerary_id, project_id = _setup(api)
+    listed = api.get(f"/api/v1/projects/{project_id}/itineraries").json()
+    assert len(listed) == 1
+    assert listed[0]["id"] == itinerary_id
+    assert listed[0]["title"] == "Jaipur / Golden Triangle"
+
+
+def test_quote_in_eur(api: TestClient) -> None:
+    itinerary_id, _ = _setup(api)
+    quote = api.post(f"/api/v1/itineraries/{itinerary_id}/quotes",
+                     json={"buyer_state_code": "05", "fx_currency": "EUR", "fx_rate": "90"}).json()
+    assert quote["fx_currency"] == "EUR"
+    assert _d(quote["total_gross"]) == Decimal("403327.00")  # ₹ unchanged
+
+
 def test_quote_reproduces_jaipur_over_http(api: TestClient) -> None:
     itinerary_id, project_id = _setup(api)
     resp = api.post(f"/api/v1/itineraries/{itinerary_id}/quotes",
                     json={"buyer_state_code": "05", "buyer_country": "IN",
-                          "rounding": "nearest_1", "fx_inr_per_usd": "95"})
+                          "rounding": "nearest_1", "fx_currency": "USD", "fx_rate": "95"})
     assert resp.status_code == 201, resp.text
     quote = resp.json()
 
@@ -127,6 +143,7 @@ def test_quote_reproduces_jaipur_over_http(api: TestClient) -> None:
     assert _d(quote["total_cost"]) == Decimal("336050.00")
     assert _d(quote["margin_pct"]) == Decimal("12.52")
     assert quote["gst_treatment"] == "cgst_sgst"
+    assert quote["fx_currency"] == "USD"
     sells = {ln["description"]: _d(ln["sell_per_pax"]) for ln in quote["lines"]}
     assert sells["Foreign Single"] == Decimal(65597)
     assert sells["Foreign Double"] == Decimal(47303)
@@ -136,7 +153,7 @@ def test_quote_reproduces_jaipur_over_http(api: TestClient) -> None:
     issued = api.post(f"/api/v1/quotes/{quote['id']}/issue", json={}).json()
     assert issued["status"] == "issued"
     revised = api.post(f"/api/v1/quotes/{quote['id']}/revise",
-                       json={"buyer_state_code": "05", "fx_inr_per_usd": "95"})
+                       json={"buyer_state_code": "05", "fx_rate": "95"})
     assert revised.status_code == 201
     assert revised.json()["version"] == 2
 
