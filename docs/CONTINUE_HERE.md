@@ -5,10 +5,10 @@ This is a faithful development log (what was built, every commit, the commands, 
 decisions, the state) — not a verbatim message transcript. Read this top-to-bottom
 and you have everything to resume.
 
-**As of:** git HEAD `97375d6` · 54 commits · **215 tests passing** · migrations
-through `0012` · Phase 1 ✅ · Phase 2 ✅ · Phase 3 ✅ · **Phase 4 ✅ COMPLETE**
-(GST invoice PDF, client proposal PDF, internal costing XLSX). Next: Phase 5
-(agentic itinerary drafter) — or hardening (role-gate sensitive endpoints).
+**As of:** git HEAD `a9054f8` · 57 commits · **220 tests passing** · migrations
+through `0012` · Phase 1 ✅ · Phase 2 ✅ · Phase 3 ✅ · Phase 4 ✅ · **Security
+hardening ✅** (whole API behind auth + role gates; web login flow). Next: Phase 5
+(agentic itinerary drafter).
 
 ---
 
@@ -141,7 +141,11 @@ Phase 4 — documents (IN PROGRESS):
  28d9b8f docs: CONTINUE_HERE through Phase 4 GST invoice
  6e8d8dd P4-M3 client proposal PDF (build_proposal + proposal_pdf; no internal figures)
  1b1da83 docs: CONTINUE_HERE through Phase 4 client proposal
- 97375d6 P4-M4 internal costing XLSX (openpyxl; build-up + margin; Phase 4 complete)   <-- HEAD
+ 97375d6 P4-M4 internal costing XLSX (openpyxl; build-up + margin; Phase 4 complete)
+ 8f9bfda docs: Phase 4 complete
+Security hardening:
+ a51bc04 auth required across API (current_org_id ← current_user) + role gates + test_authz
+ a9054f8 web login flow (login page, httpOnly cookie, middleware Bearer injection + page gate)   <-- HEAD
 ```
 
 ## 5. Repo layout (where things are)
@@ -223,13 +227,25 @@ chosen currency, inclusions from component KINDS so internal cost lines never le
 `app/services/costing_xlsx.py` reads the quote's frozen snapshot into a 3-sheet
 openpyxl workbook (Costing build-up + totals + true margin; Cost inputs; Build-up
 trace); `GET /quotes/{id}/costing.xlsx`; "Costing" button on each quote card.
-CONFIDENTIAL (shows margin + internal fee lines) — must be role-gated when auth
-lands. **Phase 4 ✅ COMPLETE.**
+CONFIDENTIAL (shows margin + internal fee lines) — now role-gated (below).
+**Phase 4 ✅ COMPLETE.**
+
+**Security hardening ✅** — the whole API is behind auth: `current_org_id` now
+derives the tenant from `current_user` (a valid Bearer token), so every org-scoped
+endpoint requires login; only `/auth/login` and `/ping` are public. Role gates
+(`require_role`): markup-rule CRUD + quote issue + costing.xlsx → owner/ops_manager;
+invoice + credit-note → owner/ops_manager/accounts. Web: `/login` page,
+Next route handlers `/api/auth/login|logout` set/clear an **httpOnly `rv_token`
+cookie**, `middleware.ts` injects the Bearer header on `/api/v1/*` and redirects
+unauthenticated pages to `/login`; server components forward the cookie token
+(`lib/api.getJSON`). Seeded login: `owner@rootsvida.local` / `RV_OWNER_PASSWORD`.
+Tests: `test_authz.py` (real stack: 401 unauth/bad-token, 403 readonly-on-commercial,
+login flow). Verified end-to-end through the web app.
+
 **What's next (owner's choice):** Phase 5 agentic itinerary drafter (dormant; spec
 in docs/ITINERARY_DRAFTING.md; outputs in the builder's input format; needs the
-pre-approved Anthropic API) — OR a hardening pass: wire `current_user`/`require_role`
-onto the app so sensitive surfaces (commercial data, issuing quotes, invoicing,
-costing XLSX) are gated (needs a login flow in the web UI first).
+pre-approved Anthropic API). Possible follow-ups: a Users admin screen in the web
+UI (backend `/auth/users` exists, owner-only); token-refresh / longer sessions.
 (status enquiry→quoted→confirmed→operating→closed + travel/quote-validity/payment/
 invoice dates) + exit test (rebuild Jaipur in the UI → golden numbers). As the UI
 lands, tighten `require_role(...)` onto sensitive endpoints (commercial data,
@@ -252,10 +268,9 @@ Phase 8 hardening.
 ## 10. To resume in a new session, say:
 
 > "Continue RootsVida TMS. Read docs/CONTINUE_HERE.md, docs/DECISIONS.md, and the
-> PHASE1/PHASE2 handoffs. Phase 4 is COMPLETE — GST invoice PDF, client proposal
-> PDF, internal costing XLSX all done (HEAD 97375d6, 215 tests, migrations through
-> 0012). Start Phase 5 (agentic itinerary drafter) — or a security-hardening pass
-> (role-gate sensitive endpoints)." — then follow the working agreements in §9.
+> PHASE1/PHASE2 handoffs. Phases 1–4 COMPLETE + security hardening done (whole API
+> behind auth + role gates + web login; HEAD a9054f8, 220 tests, migrations through
+> 0012). Start Phase 5 (agentic itinerary drafter)." — then follow §9.
 
 (In a **Claude Code** session on this machine, per-project memory under
 `~/.claude/.../memory/` also persists: product-vision, rootsvida-tms-phase1,
