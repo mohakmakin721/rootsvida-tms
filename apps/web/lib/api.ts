@@ -1,6 +1,9 @@
 import type {
   Facets,
+  ItineraryBrief,
   MarkupRule,
+  Project,
+  Quote,
   ReviewItem,
   ReviewStatus,
   SupplierPage,
@@ -57,4 +60,29 @@ export async function listMarkupRules(): Promise<MarkupRule[]> {
     throw new Error(`Domain service returned ${res.status} ${res.statusText}`);
   }
   return (await res.json()) as MarkupRule[];
+}
+
+async function getJSON<T>(path: string): Promise<T> {
+  const res = await fetch(`${SERVER_API_BASE}${path}`, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(`Domain service returned ${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as T;
+}
+
+/** All projects, newest first (the projects & quotes index). */
+export function listProjects(): Promise<Project[]> {
+  return getJSON<Project[]>("/projects");
+}
+
+export function getProject(id: string): Promise<Project> {
+  return getJSON<Project>(`/projects/${id}`);
+}
+
+export function listProjectItineraries(id: string): Promise<ItineraryBrief[]> {
+  return getJSON<ItineraryBrief[]>(`/projects/${id}/itineraries`);
+}
+
+export function listProjectQuotes(id: string): Promise<Quote[]> {
+  return getJSON<Quote[]>(`/projects/${id}/quotes`);
 }

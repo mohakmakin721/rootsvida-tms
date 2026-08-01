@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import Link from "next/link";
+
 import type {
   AllocationBasis,
   ComponentDraft,
@@ -14,6 +16,8 @@ import type {
   PreviewOut,
   SegmentDraft,
 } from "@/lib/types";
+
+import { CURRENCIES, GST_STATES, inr } from "@/lib/constants";
 
 import { ClientIntake, type IntakeValue } from "./client-intake";
 import { btnDark, btnLight, Card, Empty, Field, inputCls, Req } from "./ui";
@@ -49,11 +53,6 @@ function addDays(iso: string, n: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-function inr(v: string | number): string {
-  const n = typeof v === "string" ? Number(v) : v;
-  return `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
-}
-
 const TODAY = new Date().toISOString().slice(0, 10);
 
 export function ItineraryBuilder({
@@ -76,9 +75,12 @@ export function ItineraryBuilder({
   const [preview, setPreview] = useState<PreviewOut | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [save, setSave] = useState<{ busy: boolean; error: string | null; okId: string | null }>(
-    { busy: false, error: null, okId: null },
-  );
+  const [save, setSave] = useState<{
+    busy: boolean;
+    error: string | null;
+    okId: string | null;
+    okProjectId: string | null;
+  }>({ busy: false, error: null, okId: null, okProjectId: null });
 
   // ---- segment mutations -------------------------------------------------- //
   function addSegment() {
@@ -362,7 +364,7 @@ export function ItineraryBuilder({
 
   async function saveItinerary() {
     if (!intake) return;
-    setSave({ busy: true, error: null, okId: null });
+    setSave({ busy: true, error: null, okId: null, okProjectId: null });
     try {
       const projectId = await resolveProjectId(intake);
       const itRes = await fetch(`/api/v1/projects/${projectId}/itineraries`, {
@@ -377,9 +379,9 @@ export function ItineraryBuilder({
         );
       }
       const it = await itRes.json();
-      setSave({ busy: false, error: null, okId: it.id });
+      setSave({ busy: false, error: null, okId: it.id, okProjectId: projectId });
     } catch (e) {
-      setSave({ busy: false, error: e instanceof Error ? e.message : "Save failed.", okId: null });
+      setSave({ busy: false, error: e instanceof Error ? e.message : "Save failed.", okId: null, okProjectId: null });
     }
   }
 
@@ -853,31 +855,6 @@ function ComponentRow({
 // live cost sidebar
 // ---------------------------------------------------------------------------- //
 
-// Indian GST state codes (buyer's state → tax split). Seller is 05, Uttarakhand.
-const GST_STATES: { code: string; name: string }[] = [
-  { code: "01", name: "Jammu & Kashmir" }, { code: "02", name: "Himachal Pradesh" },
-  { code: "03", name: "Punjab" }, { code: "04", name: "Chandigarh" },
-  { code: "05", name: "Uttarakhand" }, { code: "06", name: "Haryana" },
-  { code: "07", name: "Delhi" }, { code: "08", name: "Rajasthan" },
-  { code: "09", name: "Uttar Pradesh" }, { code: "10", name: "Bihar" },
-  { code: "11", name: "Sikkim" }, { code: "12", name: "Arunachal Pradesh" },
-  { code: "13", name: "Nagaland" }, { code: "14", name: "Manipur" },
-  { code: "15", name: "Mizoram" }, { code: "16", name: "Tripura" },
-  { code: "17", name: "Meghalaya" }, { code: "18", name: "Assam" },
-  { code: "19", name: "West Bengal" }, { code: "20", name: "Jharkhand" },
-  { code: "21", name: "Odisha" }, { code: "22", name: "Chhattisgarh" },
-  { code: "23", name: "Madhya Pradesh" }, { code: "24", name: "Gujarat" },
-  { code: "26", name: "Dadra & Nagar Haveli and Daman & Diu" },
-  { code: "27", name: "Maharashtra" }, { code: "29", name: "Karnataka" },
-  { code: "30", name: "Goa" }, { code: "31", name: "Lakshadweep" },
-  { code: "32", name: "Kerala" }, { code: "33", name: "Tamil Nadu" },
-  { code: "34", name: "Puducherry" }, { code: "35", name: "Andaman & Nicobar" },
-  { code: "36", name: "Telangana" }, { code: "37", name: "Andhra Pradesh" },
-  { code: "38", name: "Ladakh" }, { code: "97", name: "Other territory" },
-];
-
-const CURRENCIES = ["USD", "EUR", "GBP", "AUD", "CAD", "AED", "SGD", "JPY", "CHF", "NZD"];
-
 function Sidebar({
   preview,
   loading,
@@ -909,7 +886,7 @@ function Sidebar({
   setMarginFloor: (v: string) => void;
   onSave: () => void;
   canSave: boolean;
-  save: { busy: boolean; error: string | null; okId: string | null };
+  save: { busy: boolean; error: string | null; okId: string | null; okProjectId: string | null };
 }) {
   return (
     <aside className="lg:sticky lg:top-6 h-fit space-y-3">
@@ -1001,11 +978,13 @@ function Sidebar({
           </p>
         )}
         {save.error && <p className="mt-2 text-xs text-red-700">{save.error}</p>}
-        {save.okId && (
-          <p className="mt-2 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-xs text-emerald-800">
-            Saved. Itinerary <code>{save.okId.slice(0, 8)}</code> created and stored under its
-            project.
-          </p>
+        {save.okId && save.okProjectId && (
+          <div className="mt-2 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-2 text-xs text-emerald-800">
+            <p>Saved and stored under its project.</p>
+            <Link href={`/projects/${save.okProjectId}`} className="mt-1 inline-block font-medium underline hover:text-emerald-900">
+              Open project &amp; create a quote →
+            </Link>
+          </div>
         )}
       </div>
     </aside>

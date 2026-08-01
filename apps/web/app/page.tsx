@@ -23,6 +23,19 @@ export default function Home() {
           </Link>
         </div>
         <div className="rounded-lg border border-neutral-200 p-5">
+          <h2 className="font-medium">Projects &amp; quotes</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Every enquiry and its quotes. Price an itinerary, issue a quote, or
+            revise one into a new version.
+          </p>
+          <Link
+            href="/projects"
+            className="mt-4 inline-block rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+          >
+            Open projects →
+          </Link>
+        </div>
+        <div className="rounded-lg border border-neutral-200 p-5">
           <h2 className="font-medium">Supplier &amp; rate browser</h2>
           <p className="mt-1 text-sm text-neutral-500">
             Search the supplier book, filter by destination and category, and open

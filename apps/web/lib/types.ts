@@ -135,6 +135,60 @@ export interface ClientDetail extends ClientSummary {
   projects: ProjectBrief[];
 }
 
+// --- Projects & quotes (Phase 3 M9) ---
+
+export interface Project {
+  id: string;
+  code: string;
+  client_id: string | null;
+  client_name: string;
+  client_country: string | null;
+  status: string;
+  created_at: string;
+}
+
+export interface ItineraryBrief {
+  id: string;
+  project_id: string;
+  title: string;
+  start_date: string;
+  end_date: string;
+  version: number;
+  status: string;
+}
+
+export interface QuoteLine {
+  description: string;
+  cost_per_pax: number | null;
+  sell_per_pax: number | null;
+  pax_count: number | null;
+  line_total: number | null;
+}
+
+export interface Quote {
+  id: string;
+  project_id: string;
+  itinerary_id: string;
+  version: number;
+  status: string;
+  gst_rate: number;
+  gst_treatment: string;
+  fx_currency: string | null;
+  fx_rate_inr_usd: number | null;
+  rounding_policy: string;
+  total_cost: number | null;
+  total_taxable: number | null;
+  total_tax: number | null;
+  total_gross: number | null;
+  margin_pct: number | null;
+  engine_version: string | null;
+  issued_at: string | null;
+  valid_until: string | null;
+  created_at: string;
+  lines: QuoteLine[];
+  pricing_snapshot: Record<string, unknown> | null;
+}
+
 // --- Itinerary builder + live pricing preview (Phase 3 M7) ---
 
 export type PaxClass = "indian" | "foreign" | "saarc";
