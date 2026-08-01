@@ -14,13 +14,16 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import current_org_id
 from app.db import get_session
-from app.models import Quote
+from app.models import Itinerary, Project, Quote
 from app.models.enums import GstTreatment, PlaceOfSupply
 from app.services import proposal as proposal_service
 from app.services import quote as quote_service
+from app.services.costing_xlsx import render_costing_xlsx
 from app.services.proposal_pdf import render_proposal_pdf
 from pricing import model as pm
 from pricing.engine import MarginBelowFloor
+
+_XLSX_MEDIA = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 router = APIRouter(tags=["quotes"])
 
@@ -127,6 +130,27 @@ def quote_proposal_pdf(
         content=pdf,
         media_type="application/pdf",
         headers={"Content-Disposition": f'inline; filename="proposal-{code}.pdf"'},
+    )
+
+
+@router.get("/quotes/{quote_id}/costing.xlsx")
+def quote_costing_xlsx(
+    quote_id: uuid.UUID,
+    session: Session = Depends(get_session),
+    org_id: uuid.UUID = Depends(current_org_id),
+) -> Response:
+    """INTERNAL costing workbook (shows margin). Gate with require_role(owner,
+    ops_manager) once auth is wired onto endpoints — this is commercial data."""
+    quote = _require(session, org_id, quote_id)
+    project = session.get(Project, quote.project_id)
+    itinerary = session.get(Itinerary, quote.itinerary_id)
+    xlsx = render_costing_xlsx(quote, project, itinerary)
+    code = (project.code if project else "quote")
+    filename = f"costing-{code}-v{quote.version}.xlsx"
+    return Response(
+        content=xlsx,
+        media_type=_XLSX_MEDIA,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 

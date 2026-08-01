@@ -451,6 +451,13 @@ function QuoteCard({
           >
             Proposal
           </a>
+          <a
+            href={`/api/v1/quotes/${quote.id}/costing.xlsx`}
+            className={btnLight}
+            title="Internal costing workbook (confidential — shows margin)"
+          >
+            Costing
+          </a>
           <button className="text-neutral-400" onClick={() => setOpen((o) => !o)} aria-label="Toggle detail">
             {open ? "▲" : "▼"}
           </button>

@@ -58,9 +58,10 @@ python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
 
-# ReportLab ships no type stubs; the invoice PDF renderer is thin formatting code.
+# ReportLab / openpyxl ship no type stubs; the PDF/XLSX renderers are thin
+# formatting code over the frozen snapshot.
 [[tool.mypy.overrides]]
-module = ["reportlab.*"]
+module = ["reportlab.*", "openpyxl.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
