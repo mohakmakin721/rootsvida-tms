@@ -74,6 +74,30 @@ def test_readonly_is_forbidden_from_commercial_actions(client: tuple[TestClient,
     assert c.post("/api/v1/markup-rules", json=body, headers=_auth(owner)).status_code == 201
 
 
+def test_owner_manages_users(client: tuple[TestClient, str, str]) -> None:
+    c, owner, readonly = client
+    listed = c.get("/api/v1/auth/users", headers=_auth(owner))
+    assert listed.status_code == 200
+    users = {u["email"]: u for u in listed.json()}
+    assert {"owner@az.local", "ro@az.local"} <= set(users)
+
+    # A non-owner may not list or manage users.
+    assert c.get("/api/v1/auth/users", headers=_auth(readonly)).status_code == 403
+
+    # Owner promotes the readonly user to sales.
+    ro_id = users["ro@az.local"]["id"]
+    upd = c.patch(f"/api/v1/auth/users/{ro_id}", json={"role": "sales"}, headers=_auth(owner))
+    assert upd.status_code == 200
+    assert upd.json()["role"] == "sales"
+
+    # Owner cannot demote or deactivate themselves (no self-lockout).
+    owner_id = users["owner@az.local"]["id"]
+    assert c.patch(f"/api/v1/auth/users/{owner_id}", json={"role": "readonly"},
+                   headers=_auth(owner)).status_code == 400
+    assert c.patch(f"/api/v1/auth/users/{owner_id}", json={"is_active": False},
+                   headers=_auth(owner)).status_code == 400
+
+
 def test_login_flow(client: tuple[TestClient, str, str]) -> None:
     c, _, _ = client
     ok = c.post("/api/v1/auth/login", json={"email": "owner@az.local", "password": "pw"})

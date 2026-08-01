@@ -6,6 +6,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -48,6 +49,11 @@ class UserCreateIn(BaseModel):
     role: UserRole = UserRole.READONLY
 
 
+class UserUpdateIn(BaseModel):
+    role: UserRole | None = None
+    is_active: bool | None = None
+
+
 @router.post("/login", response_model=LoginOut)
 def login(body: LoginIn, session: Session = Depends(get_session)) -> LoginOut:
     user = auth_service.authenticate(session, str(body.email), body.password)
@@ -59,6 +65,17 @@ def login(body: LoginIn, session: Session = Depends(get_session)) -> LoginOut:
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(current_user)) -> User:
     return user
+
+
+@router.get("/users", response_model=list[UserOut])
+def list_users(
+    session: Session = Depends(get_session),
+    org_id: uuid.UUID = Depends(current_org_id),
+    _owner: User = Depends(_require_owner),
+) -> list[User]:
+    return list(session.scalars(
+        select(User).where(User.org_id == org_id).order_by(User.email)
+    ))
 
 
 @router.post("/users", response_model=UserOut, status_code=status.HTTP_201_CREATED)
@@ -75,3 +92,31 @@ def create_user(
         )
     except IntegrityError:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="email already exists") from None
+
+
+@router.patch("/users/{user_id}", response_model=UserOut)
+def update_user(
+    user_id: uuid.UUID,
+    body: UserUpdateIn,
+    session: Session = Depends(get_session),
+    org_id: uuid.UUID = Depends(current_org_id),
+    owner: User = Depends(_require_owner),
+) -> User:
+    """Change a user's role or activation. Owner-only. You cannot demote or
+    deactivate yourself — that guards against locking the org out of ownership."""
+    user = session.scalar(select(User).where(User.id == user_id, User.org_id == org_id))
+    if user is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="user not found")
+    if user.id == owner.id and (
+        (body.role is not None and body.role is not UserRole.OWNER) or body.is_active is False
+    ):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail="you cannot change your own role or deactivate yourself",
+        )
+    if body.role is not None:
+        user.role = body.role
+    if body.is_active is not None:
+        user.is_active = body.is_active
+    session.flush()
+    return user
