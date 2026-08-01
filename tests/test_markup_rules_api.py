@@ -6,10 +6,11 @@ import uuid
 from collections.abc import Iterator
 
 import pytest
-from app.api.deps import current_org_id
+from app.api.deps import current_org_id, current_user
 from app.db import get_session
 from app.main import app
-from app.models import Organization
+from app.models import Organization, User
+from app.models.enums import UserRole
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -20,12 +21,16 @@ def api(db_session: Session) -> Iterator[TestClient]:
                        gst_state_code="05", gst_state_name="Uttarakhand")
     db_session.add(org)
     db_session.flush()
+    owner = User(org_id=org.id, email="owner@qa.local", role=UserRole.OWNER, is_active=True)
+    db_session.add(owner)
+    db_session.flush()
 
     def _session() -> Iterator[Session]:
         yield db_session
 
     app.dependency_overrides[get_session] = _session
     app.dependency_overrides[current_org_id] = lambda: org.id
+    app.dependency_overrides[current_user] = lambda: owner
     try:
         yield TestClient(app)
     finally:

@@ -10,12 +10,15 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.api.deps import current_org_id
+from app.api.deps import current_org_id, require_role
 from app.db import get_session
 from app.models import MarkupRule, TravellerSegment
-from app.models.enums import MarkupBasis
+from app.models.enums import MarkupBasis, UserRole
 
 router = APIRouter(prefix="/markup-rules", tags=["markup"])
+
+# Markup policy is commercial — only owner/ops-manager may change it.
+_manage = require_role(UserRole.OWNER, UserRole.OPS_MANAGER)
 
 
 class MarkupRuleIn(BaseModel):
@@ -56,6 +59,7 @@ def create_markup_rule(
     body: MarkupRuleIn,
     session: Session = Depends(get_session),
     org_id: uuid.UUID = Depends(current_org_id),
+    _user: object = Depends(_manage),
 ) -> MarkupRule:
     rule = MarkupRule(org_id=org_id, **body.model_dump())
     session.add(rule)
@@ -81,6 +85,7 @@ def update_markup_rule(
     body: MarkupRuleUpdate,
     session: Session = Depends(get_session),
     org_id: uuid.UUID = Depends(current_org_id),
+    _user: object = Depends(_manage),
 ) -> MarkupRule:
     rule = _require(session, org_id, rule_id)
     for field, value in body.model_dump(exclude_unset=True).items():
@@ -94,6 +99,7 @@ def delete_markup_rule(
     rule_id: uuid.UUID,
     session: Session = Depends(get_session),
     org_id: uuid.UUID = Depends(current_org_id),
+    _user: object = Depends(_manage),
 ) -> None:
     rule = _require(session, org_id, rule_id)
     in_use = session.scalar(

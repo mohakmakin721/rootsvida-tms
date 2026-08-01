@@ -11,15 +11,18 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.deps import current_org_id
+from app.api.deps import current_org_id, require_role
 from app.config import get_settings
 from app.db import get_session
 from app.models import Invoice
-from app.models.enums import GstTreatment
+from app.models.enums import GstTreatment, UserRole
 from app.services import invoice as invoice_service
 from app.services.invoice_pdf import render_invoice_pdf
 
 router = APIRouter(tags=["invoices"])
+
+# Raising invoices / credit notes is a billing action.
+_billing = require_role(UserRole.OWNER, UserRole.OPS_MANAGER, UserRole.ACCOUNTS)
 
 
 class GenerateInvoiceIn(BaseModel):
@@ -94,6 +97,7 @@ def generate_invoice(
     body: GenerateInvoiceIn | None = None,
     session: Session = Depends(get_session),
     org_id: uuid.UUID = Depends(current_org_id),
+    _user: object = Depends(_billing),
 ) -> Invoice:
     body = body or GenerateInvoiceIn()
     try:
@@ -149,6 +153,7 @@ def create_credit_note(
     body: CreditNoteIn | None = None,
     session: Session = Depends(get_session),
     org_id: uuid.UUID = Depends(current_org_id),
+    _user: object = Depends(_billing),
 ) -> Invoice:
     body = body or CreditNoteIn()
     try:

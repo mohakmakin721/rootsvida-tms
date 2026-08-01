@@ -14,11 +14,11 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
-from app.api.deps import current_org_id
+from app.api.deps import current_org_id, current_user
 from app.db import get_session
 from app.main import app
-from app.models import Itinerary, Organization, Project, Quote
-from app.models.enums import GstTreatment
+from app.models import Itinerary, Organization, Project, Quote, User
+from app.models.enums import GstTreatment, UserRole
 from app.services import invoice as inv
 from app.services.invoice import fiscal_year
 from app.services.invoice_pdf import amount_in_words, render_invoice_pdf, rupees
@@ -142,12 +142,16 @@ def test_credit_note_cancels_and_negates(db_session: Session) -> None:
 @pytest.fixture
 def api(db_session: Session) -> Iterator[tuple[TestClient, Organization]]:
     org = _org(db_session)
+    owner = User(org_id=org.id, email="owner@qa.local", role=UserRole.OWNER, is_active=True)
+    db_session.add(owner)
+    db_session.flush()
 
     def _session() -> Iterator[Session]:
         yield db_session
 
     app.dependency_overrides[get_session] = _session
     app.dependency_overrides[current_org_id] = lambda: org.id
+    app.dependency_overrides[current_user] = lambda: owner
     try:
         yield TestClient(app), org
     finally:

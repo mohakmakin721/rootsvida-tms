@@ -12,10 +12,10 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.deps import current_org_id
+from app.api.deps import current_org_id, require_role
 from app.db import get_session
 from app.models import Itinerary, Project, Quote
-from app.models.enums import GstTreatment, PlaceOfSupply
+from app.models.enums import GstTreatment, PlaceOfSupply, UserRole
 from app.services import proposal as proposal_service
 from app.services import quote as quote_service
 from app.services.costing_xlsx import render_costing_xlsx
@@ -26,6 +26,9 @@ from pricing.engine import MarginBelowFloor
 _XLSX_MEDIA = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 router = APIRouter(tags=["quotes"])
+
+# Committing a price (issuing) and seeing margin (costing) are commercial actions.
+_commercial = require_role(UserRole.OWNER, UserRole.OPS_MANAGER)
 
 
 class QuoteCreateIn(BaseModel):
@@ -138,9 +141,9 @@ def quote_costing_xlsx(
     quote_id: uuid.UUID,
     session: Session = Depends(get_session),
     org_id: uuid.UUID = Depends(current_org_id),
+    _user: object = Depends(_commercial),
 ) -> Response:
-    """INTERNAL costing workbook (shows margin). Gate with require_role(owner,
-    ops_manager) once auth is wired onto endpoints — this is commercial data."""
+    """INTERNAL costing workbook (shows margin) — owner/ops-manager only."""
     quote = _require(session, org_id, quote_id)
     project = session.get(Project, quote.project_id)
     itinerary = session.get(Itinerary, quote.itinerary_id)
@@ -172,6 +175,7 @@ def issue_quote(
     body: IssueIn,
     session: Session = Depends(get_session),
     org_id: uuid.UUID = Depends(current_org_id),
+    _user: object = Depends(_commercial),
 ) -> Quote:
     quote = _require(session, org_id, quote_id)
     try:
