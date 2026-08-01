@@ -5,10 +5,10 @@ This is a faithful development log (what was built, every commit, the commands, 
 decisions, the state) — not a verbatim message transcript. Read this top-to-bottom
 and you have everything to resume.
 
-**As of:** git HEAD `a9054f8` · 57 commits · **220 tests passing** · migrations
+**As of:** git HEAD `14bcad5` · 60 commits · **221 tests passing** · migrations
 through `0012` · Phase 1 ✅ · Phase 2 ✅ · Phase 3 ✅ · Phase 4 ✅ · **Security
-hardening ✅** (whole API behind auth + role gates; web login flow). Next: Phase 5
-(agentic itinerary drafter).
+hardening ✅** (whole API behind auth + role gates; web login flow; users admin).
+Next: Phase 5 (agentic itinerary drafter).
 
 ---
 
@@ -242,10 +242,17 @@ unauthenticated pages to `/login`; server components forward the cookie token
 Tests: `test_authz.py` (real stack: 401 unauth/bad-token, 403 readonly-on-commercial,
 login flow). Verified end-to-end through the web app.
 
+**Users admin ✅** — `GET /auth/users` + `PATCH /auth/users/{id}` (owner-only;
+can't self-demote/deactivate); web `/users` screen (list + inline role change +
+activate/deactivate + add-user form), "Users" link on home for owners. Login route
+now distinguishes "API down (:8000)" from "bad credentials".
+**Reminder: run BOTH servers** — the API (`uvicorn ... :8000`) AND the web
+(`npm run dev` from apps/web :3000). If login says "Invalid email or password",
+first check the API on :8000 is up. Seeded login `owner@rootsvida.local` /
+`RV_OWNER_PASSWORD` (default `change_me_owner`).
 **What's next (owner's choice):** Phase 5 agentic itinerary drafter (dormant; spec
 in docs/ITINERARY_DRAFTING.md; outputs in the builder's input format; needs the
-pre-approved Anthropic API). Possible follow-ups: a Users admin screen in the web
-UI (backend `/auth/users` exists, owner-only); token-refresh / longer sessions.
+pre-approved Anthropic API). Possible follow-ups: token-refresh / longer sessions.
 (status enquiry→quoted→confirmed→operating→closed + travel/quote-validity/payment/
 invoice dates) + exit test (rebuild Jaipur in the UI → golden numbers). As the UI
 lands, tighten `require_role(...)` onto sensitive endpoints (commercial data,
