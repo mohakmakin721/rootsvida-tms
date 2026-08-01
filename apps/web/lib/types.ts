@@ -212,6 +212,45 @@ export interface Quote {
   pricing_snapshot: Record<string, unknown> | null;
 }
 
+// --- Invoices (Phase 4) — money fields are decimal strings ---
+
+export interface InvoiceLine {
+  description: string;
+  hsn: string | null;
+  quantity: string;
+  taxable_value: string;
+}
+
+export interface Invoice {
+  id: string;
+  number: string;
+  fiscal_year: string;
+  serial: number;
+  kind: string; // invoice | credit_note
+  status: string; // issued | cancelled
+  invoice_date: string;
+  project_id: string;
+  quote_id: string;
+  project_code: string | null;
+  credit_note_of_id: string | null;
+  seller_name: string;
+  buyer_name: string;
+  buyer_country: string | null;
+  place_of_supply: string | null;
+  hsn: string | null;
+  gst_rate: string;
+  gst_treatment: string;
+  taxable: string;
+  cgst: string;
+  sgst: string;
+  igst: string;
+  rounding_adjustment: string;
+  total: string;
+  notes: string | null;
+  created_at: string;
+  lines: InvoiceLine[];
+}
+
 // --- Itinerary builder + live pricing preview (Phase 3 M7) ---
 
 export type PaxClass = "indian" | "foreign" | "saarc";

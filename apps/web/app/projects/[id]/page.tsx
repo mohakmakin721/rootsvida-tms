@@ -2,11 +2,12 @@ import Link from "next/link";
 
 import {
   getProject,
+  listProjectInvoices,
   listProjectItineraries,
   listProjectMilestones,
   listProjectQuotes,
 } from "@/lib/api";
-import type { ItineraryBrief, Milestone, Project, Quote } from "@/lib/types";
+import type { Invoice, ItineraryBrief, Milestone, Project, Quote } from "@/lib/types";
 
 import { ProjectWorkspace } from "./project-workspace";
 
@@ -18,13 +19,15 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
   let itineraries: ItineraryBrief[] = [];
   let quotes: Quote[] = [];
   let milestones: Milestone[] = [];
+  let invoices: Invoice[] = [];
   let error: string | null = null;
   try {
-    [project, itineraries, quotes, milestones] = await Promise.all([
+    [project, itineraries, quotes, milestones, invoices] = await Promise.all([
       getProject(id),
       listProjectItineraries(id),
       listProjectQuotes(id),
       listProjectMilestones(id),
+      listProjectInvoices(id),
     ]);
   } catch (e) {
     error = e instanceof Error ? e.message : "Unknown error";
@@ -46,6 +49,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
           initialItineraries={itineraries}
           initialQuotes={quotes}
           initialMilestones={milestones}
+          initialInvoices={invoices}
         />
       )}
     </main>

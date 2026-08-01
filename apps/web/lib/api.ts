@@ -1,5 +1,6 @@
 import type {
   Facets,
+  Invoice,
   ItineraryBrief,
   MarkupRule,
   Milestone,
@@ -90,4 +91,8 @@ export function listProjectQuotes(id: string): Promise<Quote[]> {
 
 export function listProjectMilestones(id: string): Promise<Milestone[]> {
   return getJSON<Milestone[]>(`/projects/${id}/milestones`);
+}
+
+export function listProjectInvoices(id: string): Promise<Invoice[]> {
+  return getJSON<Invoice[]>(`/projects/${id}/invoices`);
 }

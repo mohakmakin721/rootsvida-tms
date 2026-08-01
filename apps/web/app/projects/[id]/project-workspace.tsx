@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { CURRENCIES, GST_STATES, inr } from "@/lib/constants";
-import type { ItineraryBrief, Milestone, Project, Quote } from "@/lib/types";
+import type { Invoice, ItineraryBrief, Milestone, Project, Quote } from "@/lib/types";
 
 import { btnDark, btnLight, Field, inputCls } from "@/app/builder/ui";
 
@@ -49,20 +49,67 @@ export function ProjectWorkspace({
   initialItineraries,
   initialQuotes,
   initialMilestones,
+  initialInvoices,
 }: {
   project: Project;
   initialItineraries: ItineraryBrief[];
   initialQuotes: Quote[];
   initialMilestones: Milestone[];
+  initialInvoices: Invoice[];
 }) {
   const [quotes, setQuotes] = useState<Quote[]>(initialQuotes);
+  const [invoices, setInvoices] = useState<Invoice[]>(initialInvoices);
   const [openForm, setOpenForm] = useState<string | null>(null); // "create:<itId>" | "revise:<qId>"
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // A quote is already invoiced if it has a live (issued) invoice.
+  const invoicedQuoteIds = new Set(
+    invoices.filter((i) => i.kind === "invoice" && i.status === "issued").map((i) => i.quote_id),
+  );
+
   async function refreshQuotes() {
     const res = await fetch(`/api/v1/projects/${project.id}/quotes`, { cache: "no-store" });
     if (res.ok) setQuotes((await res.json()) as Quote[]);
+  }
+
+  async function refreshInvoices() {
+    const res = await fetch(`/api/v1/projects/${project.id}/invoices`, { cache: "no-store" });
+    if (res.ok) setInvoices((await res.json()) as Invoice[]);
+  }
+
+  async function generateInvoice(quoteId: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/v1/quotes/${quoteId}/invoice`, { method: "POST" });
+      if (!res.ok) {
+        const d = await res.json().catch(() => null);
+        setError(typeof d?.detail === "string" ? d.detail : `Could not generate invoice (${res.status}).`);
+      } else {
+        await refreshInvoices();
+      }
+    } catch {
+      setError("Could not reach the domain service.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function creditNote(invoiceId: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/v1/invoices/${invoiceId}/credit-note`, { method: "POST" });
+      if (!res.ok) {
+        const d = await res.json().catch(() => null);
+        setError(typeof d?.detail === "string" ? d.detail : `Could not raise credit note (${res.status}).`);
+      } else {
+        await refreshInvoices();
+      }
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function post(url: string, body: unknown): Promise<boolean> {
@@ -174,17 +221,87 @@ export function ProjectWorkspace({
                   key={q.id}
                   quote={q}
                   busy={busy}
+                  invoiced={invoicedQuoteIds.has(q.id)}
                   reviseOpen={openForm === `revise:${q.id}`}
                   onToggleRevise={() =>
                     setOpenForm(openForm === `revise:${q.id}` ? null : `revise:${q.id}`)
                   }
                   onRevise={(a) => reviseQuote(q.id, a)}
                   onIssue={(d) => issueQuote(q.id, d)}
+                  onGenerateInvoice={() => generateInvoice(q.id)}
                 />
               ))}
           </div>
         )}
       </section>
+
+      {/* Invoices */}
+      <section className="mt-8">
+        <h2 className="mb-2 text-sm font-semibold text-neutral-800">Invoices</h2>
+        {invoices.length === 0 ? (
+          <p className="rounded-md border border-dashed border-neutral-200 px-3 py-3 text-xs text-neutral-400">
+            No invoices yet. Generate one from an issued quote above.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {invoices.map((inv) => (
+              <InvoiceRow
+                key={inv.id}
+                invoice={inv}
+                busy={busy}
+                onCreditNote={() => creditNote(inv.id)}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+const INVOICE_TONE: Record<string, string> = {
+  issued: "bg-blue-100 text-blue-700",
+  cancelled: "bg-neutral-200 text-neutral-400 line-through",
+};
+
+function InvoiceRow({
+  invoice,
+  busy,
+  onCreditNote,
+}: {
+  invoice: Invoice;
+  busy: boolean;
+  onCreditNote: () => void;
+}) {
+  const isCredit = invoice.kind === "credit_note";
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-neutral-200 bg-white p-3">
+      <span className="font-mono text-sm font-medium text-neutral-900">{invoice.number}</span>
+      {isCredit && (
+        <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700">
+          credit note
+        </span>
+      )}
+      <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${INVOICE_TONE[invoice.status] ?? "bg-neutral-100"}`}>
+        {invoice.status}
+      </span>
+      <span className="text-sm text-neutral-700">{inr(invoice.total)}</span>
+      <span className="text-xs text-neutral-400">{invoice.invoice_date}</span>
+      <div className="ml-auto flex items-center gap-2">
+        <a
+          href={`/api/v1/invoices/${invoice.id}/pdf`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={btnDark}
+        >
+          Download PDF
+        </a>
+        {!isCredit && invoice.status === "issued" && (
+          <button className={btnLight} disabled={busy} onClick={onCreditNote}>
+            Credit note
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -244,17 +361,21 @@ function AssumptionsForm({
 function QuoteCard({
   quote,
   busy,
+  invoiced,
   reviseOpen,
   onToggleRevise,
   onRevise,
   onIssue,
+  onGenerateInvoice,
 }: {
   quote: Quote;
   busy: boolean;
+  invoiced: boolean;
   reviseOpen: boolean;
   onToggleRevise: () => void;
   onRevise: (a: Assumptions) => void;
   onIssue: (validUntil: string) => void;
+  onGenerateInvoice: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [validUntil, setValidUntil] = useState("");
@@ -304,6 +425,17 @@ function QuoteCard({
                 {issuing ? "Issuing…" : "Issue"}
               </button>
             </>
+          )}
+          {(quote.status === "issued" || quote.status === "accepted") && (
+            invoiced ? (
+              <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700">
+                ✓ invoiced
+              </span>
+            ) : (
+              <button className={`${btnDark} disabled:opacity-50`} disabled={busy} onClick={onGenerateInvoice}>
+                Generate invoice
+              </button>
+            )
           )}
           {(quote.status === "issued" || quote.status === "accepted" || quote.status === "expired") && (
             <button className={btnLight} onClick={onToggleRevise}>
