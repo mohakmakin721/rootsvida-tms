@@ -44,6 +44,11 @@ export async function getMe(): Promise<CurrentUser | null> {
   }
 }
 
+/** All users in the org (owner-only — throws 403 otherwise). */
+export function listUsers(): Promise<CurrentUser[]> {
+  return getJSON<CurrentUser[]>("/auth/users");
+}
+
 /** Fetch review-queue items by status (server-side, never cached). */
 export function listReviewItems(status: ReviewStatus = "pending"): Promise<ReviewItem[]> {
   return getJSON<ReviewItem[]>(`/review-queue?status=${status}&limit=200`);

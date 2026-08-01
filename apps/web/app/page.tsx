@@ -12,7 +12,14 @@ export default async function Home() {
     <main className="mx-auto max-w-2xl px-6 py-16">
       <div className="flex items-start justify-between gap-4">
         <h1 className="text-2xl font-semibold">RootsVida TMS</h1>
-        {me && <UserBadge email={me.email} role={me.role} />}
+        <div className="flex items-center gap-3">
+          {me?.role === "owner" && (
+            <Link href="/users" className="text-sm text-neutral-500 underline hover:text-neutral-800">
+              Users
+            </Link>
+          )}
+          {me && <UserBadge email={me.email} role={me.role} />}
+        </div>
       </div>
       <p className="mt-2 text-neutral-600">
         Internal travel-management workspace — projects, itineraries and the

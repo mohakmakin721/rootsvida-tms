@@ -25,7 +25,8 @@ export default function LoginPage() {
         router.push("/");
         router.refresh();
       } else {
-        setError("Invalid email or password.");
+        const detail = await res.json().catch(() => null);
+        setError(detail?.error ?? "Invalid email or password.");
         setBusy(false);
       }
     } catch {

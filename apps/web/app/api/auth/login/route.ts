@@ -23,8 +23,19 @@ export async function POST(req: NextRequest) {
     cache: "no-store",
   }).catch(() => null);
 
-  if (!res || !res.ok) {
+  // Distinguish "can't reach the API" from "wrong credentials" — they are very
+  // different problems and conflating them sends people down the wrong path.
+  if (res === null) {
+    return NextResponse.json(
+      { error: "Could not reach the domain service on :8000. Is it running (make api / uvicorn)?" },
+      { status: 502 },
+    );
+  }
+  if (res.status === 401) {
     return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
+  }
+  if (!res.ok) {
+    return NextResponse.json({ error: `Login failed (${res.status}).` }, { status: res.status });
   }
 
   const data = (await res.json()) as { token: string; user: unknown };
