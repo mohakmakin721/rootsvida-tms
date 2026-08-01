@@ -5,9 +5,10 @@ This is a faithful development log (what was built, every commit, the commands, 
 decisions, the state) — not a verbatim message transcript. Read this top-to-bottom
 and you have everything to resume.
 
-**As of:** git HEAD `35fbbec` · 43 commits · **196 tests passing** · migrations
-through `0010` · Phase 1 ✅ complete · Phase 2 ✅ complete · **Phase 3 in progress
-(M9 of 10 done — quote view / projects workspace)**.
+**As of:** git HEAD `c78172c` · 46 commits · **200 tests passing** · migrations
+through `0011` · Phase 1 ✅ complete · Phase 2 ✅ complete · **Phase 3 ✅ complete
+(M10 of 10 — project timeline; exit test green)**. Next: Phase 4 (documents/invoices)
+or Phase 5 (agentic itinerary drafter).
 
 ---
 
@@ -129,22 +130,25 @@ Phase 3 — web app: itineraries & quotes (IN PROGRESS):
  a70ba56 M8 frontend — client intake, markup manager, state/currency pickers, tooltips
  1b1f4d6 perf(builder): scope live preview to itinerary fields; docs through M8
  138db5b M9 backend — multi-currency quotes (migration 0010) + list-itineraries endpoint
- 35fbbec M9 frontend — projects & quotes workspace (create/issue/revise, breakdown)   <-- HEAD
+ 35fbbec M9 frontend — projects & quotes workspace (create/issue/revise, breakdown)
+ ca1d182 docs: update CONTINUE_HERE through Phase 3 M9
+ 3fd9884 M10 backend — first-class project timeline (migration 0011, milestones)
+ c78172c M10 frontend — timeline UI (status stepper, travel window, milestones); Phase 3 exit test green   <-- HEAD
 ```
 
 ## 5. Repo layout (where things are)
 
 | Path | What |
 |---|---|
-| `services/domain-svc/app/models/` | SQLAlchemy models (canonical, provenance, review, tax, itinerary, quote, **client**) |
+| `services/domain-svc/app/models/` | SQLAlchemy models (canonical, provenance, review, tax, itinerary, quote, client, **project_milestone**) |
 | `services/domain-svc/app/services/` | `review`, `merge`, `tax` (place-of-supply), `pricing_bridge`, `quote`, `auth`, `suppliers` (browse, D-0002-safe), `freshness` (pure badge classifier), `itinerary` (build graph from a draft), `preview` (price a draft, savepoint-rollback, persists nothing) |
 | `services/domain-svc/app/security/` | Self-hosted auth primitives: `passwords` (PBKDF2), `tokens` (HMAC) |
 | `services/domain-svc/app/api/v1/` | FastAPI routers: `auth`, `review`, `suppliers`, `markup_rules` (CRUD), `clients`, `projects`, `itineraries`, `quotes`, `pricing` (live preview) |
 | `services/domain-svc/pricing/` | **Pure** deterministic pricing engine (`money`, `model`, `engine`, `tax`) |
 | `ingestion/` | Ingestion CLI + pipeline (`staging`, `normalize`, `migrate`, `dedup`, `quality`, `reingest`) |
 | `db/migrations/versions/` | Alembic migrations `0001`–`0007` |
-| `apps/web/` | Next.js UI (`/review` queue; `/suppliers` browser; `/builder` client intake + itinerary builder + live sidebar; `/projects` + `/projects/[id]` quote workspace; timeline = Phase 3 M10) |
-| `tests/` | 196 tests (pytest, from repo root) |
+| `apps/web/` | Next.js UI (`/review` queue; `/suppliers` browser; `/builder` client intake + itinerary builder + live sidebar; `/projects` + `/projects/[id]` quote workspace **with timeline**: status stepper, travel window, milestones) |
+| `tests/` | 200 tests (pytest, from repo root) |
 | `docs/` | DECISIONS, DATA_DICTIONARY, INGESTION, PRICING, ITINERARY_DRAFTING, TROUBLESHOOTING, PHASE{1,2}_HANDOFF |
 
 ## 6. Golden facts (must always reproduce)
@@ -187,9 +191,18 @@ picker, currency selector, red required-asterisks + ℹ tooltips) · **M9 quote 
 projects workspace** (migration 0010 `quotes.fx_currency`; `/projects` index +
 `/projects/[id]` workspace: price an itinerary into a draft quote with assumptions,
 view the full breakdown, **issue** (freeze + valid-until) and **revise** into a new
-version; builder save links straight to the project) ✅.
-**Phase 3 remaining (UI, build order):** **M10 project workspace + first-class
-timeline tracking**
+version; builder save links straight to the project) · **M10 project timeline**
+(migration 0011: `projects.status_changed_at`/`travel_start`/`travel_end` +
+`project_milestones`; `PATCH /projects/{id}` advances status + travel window;
+milestone CRUD; workspace timeline = lifecycle stepper + travel window + milestones
+with overdue flags) ✅. **Phase 3 EXIT TEST GREEN**: golden Jaipur rebuilt through
+the full app reproduces ₹4,03,327 / 12.52% / USD 4,245.55.
+**Phase 3 ✅ COMPLETE (all 10 milestones).**
+**What's next (owner's choice):** Phase 4 (documents — internal costing XLSX,
+client proposal PDF, GST invoice PDF with gapless numbering) OR Phase 5 (agentic
+itinerary drafter — spec in docs/ITINERARY_DRAFTING.md; outputs in the builder's
+input format; still dormant/opt-in). Also outstanding: tighten `require_role(...)`
+onto sensitive endpoints (commercial data, issuing quotes) now the UI has landed.
 (status enquiry→quoted→confirmed→operating→closed + travel/quote-validity/payment/
 invoice dates) + exit test (rebuild Jaipur in the UI → golden numbers). As the UI
 lands, tighten `require_role(...)` onto sensitive endpoints (commercial data,
@@ -212,9 +225,9 @@ Phase 8 hardening.
 ## 10. To resume in a new session, say:
 
 > "Continue RootsVida TMS. Read docs/CONTINUE_HERE.md, docs/DECISIONS.md, and the
-> PHASE1/PHASE2 handoffs. We're on Phase 3, M9 done (HEAD 35fbbec, 196 tests,
-> migrations through 0010). Start Phase 3 Milestone 10 (project workspace +
-> first-class timeline tracking)." — then follow the working agreements in §9.
+> PHASE1/PHASE2 handoffs. Phase 3 is COMPLETE (HEAD c78172c, 200 tests, migrations
+> through 0011, exit test green). Start Phase 4 (documents/invoices) — or Phase 5
+> (agentic itinerary drafter)." — then follow the working agreements in §9.
 
 (In a **Claude Code** session on this machine, per-project memory under
 `~/.claude/.../memory/` also persists: product-vision, rootsvida-tms-phase1,
