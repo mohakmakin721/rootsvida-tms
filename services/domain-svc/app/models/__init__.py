@@ -18,6 +18,7 @@ from app.models.itinerary import (
     ItineraryComponent,
     ItineraryDay,
     Project,
+    ProjectMilestone,
     TravellerSegment,
 )
 from app.models.markup import MarkupRule
@@ -53,6 +54,7 @@ __all__ = [
     "MiscCost",
     "Organization",
     "Project",
+    "ProjectMilestone",
     "Quote",
     "QuoteLine",
     "RawImportRow",

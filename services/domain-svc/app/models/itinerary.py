@@ -9,11 +9,12 @@ the pricing engine reads — replacing the workbook's hardcoded SUM ranges.
 from __future__ import annotations
 
 import uuid
-from datetime import date
+from datetime import date, datetime
 
 from sqlalchemy import (
     CheckConstraint,
     Date,
+    DateTime,
     ForeignKey,
     Integer,
     Numeric,
@@ -29,7 +30,13 @@ from app.models.types import pg_enum
 
 
 class Project(UUIDPrimaryKeyMixin, OrgScopedMixin, TimestampMixin, Base):
-    """One enquiry = one project (code 'TP10'), holding its itineraries + quotes."""
+    """One enquiry = one project (code 'TP10'), holding its itineraries + quotes.
+
+    Timeline tracking is first-class (M10): the project carries its lifecycle status
+    with the moment it last changed, the travel window, and a set of dated
+    milestones (payments, invoice due dates, custom deadlines) — not just a status
+    string.
+    """
 
     __tablename__ = "projects"
     __table_args__ = (UniqueConstraint("org_id", "code"),)
@@ -44,8 +51,31 @@ class Project(UUIDPrimaryKeyMixin, OrgScopedMixin, TimestampMixin, Base):
     status: Mapped[str] = mapped_column(
         Text, nullable=False, server_default="enquiry"
     )  # enquiry|quoted|confirmed|operating|closed|lost
+    status_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    travel_start: Mapped[date | None] = mapped_column(Date)
+    travel_end: Mapped[date | None] = mapped_column(Date)
 
     itineraries: Mapped[list[Itinerary]] = relationship(back_populates="project")
+    milestones: Mapped[list[ProjectMilestone]] = relationship(back_populates="project")
+
+
+class ProjectMilestone(UUIDPrimaryKeyMixin, OrgScopedMixin, TimestampMixin, Base):
+    """A dated deadline on a project's timeline — a payment, an invoice due date, or
+    any custom milestone. `amount` carries the sum for payment milestones."""
+
+    __tablename__ = "project_milestones"
+
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    kind: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default="deadline"
+    )  # payment|invoice|deadline|other
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    due_date: Mapped[date | None] = mapped_column(Date)
+    amount: Mapped[float | None] = mapped_column(Numeric(14, 2))
+    done: Mapped[bool] = mapped_column(nullable=False, server_default="false")
+    notes: Mapped[str | None] = mapped_column(Text)
+
+    project: Mapped[Project] = relationship(back_populates="milestones")
 
 
 class Itinerary(UUIDPrimaryKeyMixin, OrgScopedMixin, TimestampMixin, Base):

@@ -20,6 +20,18 @@ class UserRole(StrEnum):
     READONLY = "readonly"
 
 
+class ProjectStatus(StrEnum):
+    """A project's lifecycle stage (Part 2 timeline; M10). Stored as text on the
+    project — this enum validates the API and drives the workspace stepper."""
+
+    ENQUIRY = "enquiry"
+    QUOTED = "quoted"
+    CONFIRMED = "confirmed"
+    OPERATING = "operating"
+    CLOSED = "closed"
+    LOST = "lost"
+
+
 class ClientType(StrEnum):
     """What kind of buyer a client is — shapes how a trip is planned and quoted."""
 
