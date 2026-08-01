@@ -31,7 +31,8 @@ class PreviewIn(BaseModel):
     buyer_country: str | None = "IN"
     tax_override: PlaceOfSupply | None = None
     rounding: pm.RoundingPolicy = pm.RoundingPolicy.NEAREST_1
-    fx_inr_per_usd: Decimal | None = None
+    fx_currency: str = "USD"
+    fx_rate: Decimal | None = None
     margin_floor: Decimal | None = None
 
 
@@ -69,7 +70,8 @@ def preview_pricing(
             session, org_id, body.itinerary,
             buyer_state_code=body.buyer_state_code, buyer_country=body.buyer_country,
             tax_override=body.tax_override, rounding=body.rounding,
-            fx_inr_per_usd=body.fx_inr_per_usd, margin_floor=body.margin_floor,
+            fx_currency=body.fx_currency, fx_rate=body.fx_rate,
+            margin_floor=body.margin_floor,
         )
     except KeyResolutionError as exc:
         raise HTTPException(

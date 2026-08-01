@@ -126,7 +126,7 @@ def test_bridge_reproduces_jaipur_golden(db_session: Session) -> None:
     itinerary_id = _seed_jaipur(db_session)
     inp = build_pricing_input(
         db_session, itinerary_id, buyer_state_code="05", buyer_country="IN",
-        rounding=pm.RoundingPolicy.NEAREST_1, fx_inr_per_usd=Decimal(95),
+        rounding=pm.RoundingPolicy.NEAREST_1, fx_rate=Decimal(95),
     )
     quote = price(inp)
     sell = {s.label: s.sell_per_pax for s in quote.segments}

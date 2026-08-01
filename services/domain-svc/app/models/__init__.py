@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from app.models.activity import ActivityRate, GuideRate
 from app.models.base import Base
+from app.models.client import Client
 from app.models.destination import Destination
 from app.models.itinerary import (
     DaySegmentPresence,
@@ -41,6 +42,7 @@ from app.models.transport import TransportRate
 __all__ = [
     "ActivityRate",
     "Base",
+    "Client",
     "DaySegmentPresence",
     "Destination",
     "GuideRate",

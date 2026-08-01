@@ -66,7 +66,8 @@ def preview_pricing(
     buyer_country: str | None = "IN",
     tax_override: PlaceOfSupply | None = None,
     rounding: pm.RoundingPolicy = pm.RoundingPolicy.NEAREST_1,
-    fx_inr_per_usd: Decimal | None = None,
+    fx_currency: str = "USD",
+    fx_rate: Decimal | None = None,
     margin_floor: Decimal | None = None,
 ) -> dict[str, Any]:
     """Price `draft` and return the breakdown for the sidebar. Persists nothing."""
@@ -85,7 +86,7 @@ def preview_pricing(
         inp = build_pricing_input(
             session, itinerary.id, buyer_state_code=buyer_state_code,
             buyer_country=buyer_country, tax_override=tax_override, rounding=rounding,
-            fx_inr_per_usd=fx_inr_per_usd, margin_floor=None,
+            fx_currency=fx_currency, fx_rate=fx_rate, margin_floor=None,
         )
         priced = price(inp)
         return _serialize(inp, priced, margin_floor)

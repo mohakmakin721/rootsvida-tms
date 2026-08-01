@@ -20,6 +20,15 @@ class UserRole(StrEnum):
     READONLY = "readonly"
 
 
+class ClientType(StrEnum):
+    """What kind of buyer a client is — shapes how a trip is planned and quoted."""
+
+    INDIVIDUAL = "individual"
+    FAMILY = "family"
+    GROUP = "group"
+    CORPORATE = "corporate"
+
+
 class SupplierKind(StrEnum):
     """Kinds of supplier the canonical model can represent (Part 2 §4.1)."""
 
@@ -189,6 +198,7 @@ class GstTreatment(StrEnum):
 # so the Python enum and the DB type never drift.
 PG_ENUM_NAMES: dict[type[Enum], str] = {
     UserRole: "user_role",
+    ClientType: "client_type",
     SupplierKind: "supplier_kind",
     MealPlan: "meal_plan",
     Occupancy: "occupancy",

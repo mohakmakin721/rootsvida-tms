@@ -63,7 +63,7 @@ def test_preview_reproduces_jaipur_golden(api: tuple[TestClient, Session]) -> No
     resp = client.post("/api/v1/pricing/preview", json={
         "itinerary": _itinerary_payload(foreign, indian),
         "buyer_state_code": "05", "buyer_country": "IN",
-        "rounding": "nearest_1", "fx_inr_per_usd": "95",
+        "rounding": "nearest_1", "fx_currency": "USD", "fx_rate": "95",
     })
     assert resp.status_code == 200, resp.text
     body = resp.json()
@@ -78,6 +78,18 @@ def test_preview_reproduces_jaipur_golden(api: tuple[TestClient, Session]) -> No
     assert sells["Foreign Single"] == Decimal(65597)
     assert sells["Foreign Double"] == Decimal(47303)
     assert sells["Indian Double"] == Decimal(26956)
+
+
+def test_preview_converts_to_chosen_currency(api: tuple[TestClient, Session]) -> None:
+    client, _ = api
+    foreign, indian = _markup_rules(client)
+    resp = client.post("/api/v1/pricing/preview", json={
+        "itinerary": _itinerary_payload(foreign, indian),
+        "buyer_state_code": "05", "fx_currency": "EUR", "fx_rate": "90",
+    })
+    assert resp.status_code == 200, resp.text
+    # 403327 / 90 = 4481.41 — INR stays authoritative, EUR is the display convert.
+    assert resp.json()["fx"] == {"EUR": "4481.41"}
 
 
 def test_preview_persists_nothing(api: tuple[TestClient, Session]) -> None:

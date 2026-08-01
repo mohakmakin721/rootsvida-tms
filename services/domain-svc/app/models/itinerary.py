@@ -35,6 +35,9 @@ class Project(UUIDPrimaryKeyMixin, OrgScopedMixin, TimestampMixin, Base):
     __table_args__ = (UniqueConstraint("org_id", "code"),)
 
     code: Mapped[str] = mapped_column(Text, nullable=False)
+    # `client_id` links to the canonical client record (M8); `client_name` stays as
+    # a denormalised snapshot so legacy rows and quick drafts still read cleanly.
+    client_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("clients.id"))
     client_name: Mapped[str] = mapped_column(Text, nullable=False)
     client_country: Mapped[str | None] = mapped_column(Text)  # ISO-2, e.g. 'CL'
     owner_user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))

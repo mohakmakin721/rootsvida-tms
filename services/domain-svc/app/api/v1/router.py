@@ -10,6 +10,7 @@ from fastapi import APIRouter
 
 from app.api.v1 import (
     auth,
+    clients,
     itineraries,
     markup_rules,
     pricing,
@@ -32,6 +33,7 @@ api_router.include_router(auth.router)
 api_router.include_router(review.router)
 api_router.include_router(suppliers.router)
 api_router.include_router(markup_rules.router)
+api_router.include_router(clients.router)
 api_router.include_router(projects.router)
 api_router.include_router(itineraries.router)
 api_router.include_router(quotes.router)

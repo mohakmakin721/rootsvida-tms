@@ -142,7 +142,8 @@ def build_pricing_input(
     buyer_country: str | None = "IN",
     tax_override: PlaceOfSupply | None = None,
     rounding: pm.RoundingPolicy = pm.RoundingPolicy.NEAREST_1,
-    fx_inr_per_usd: Decimal | None = None,
+    fx_currency: str = "USD",
+    fx_rate: Decimal | None = None,
     margin_floor: Decimal | None = None,
 ) -> pm.PricingInput:
     """Assemble the engine input for `itinerary_id` under the resolved GST rule."""
@@ -206,7 +207,7 @@ def build_pricing_input(
                     )
                 )
 
-    fx = pm.FxRate("USD", money(fx_inr_per_usd)) if fx_inr_per_usd is not None else None
+    fx = pm.FxRate(fx_currency, money(fx_rate)) if fx_rate is not None else None
     return pm.PricingInput(
         segments=_segments(seg_rows),
         stays=tuple(stays),

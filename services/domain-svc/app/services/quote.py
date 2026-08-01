@@ -119,8 +119,8 @@ def create_quote(
 
     inp = build_pricing_input(
         session, itinerary_id, buyer_state_code=buyer_state_code, buyer_country=buyer_country,
-        tax_override=tax_override, rounding=rounding, fx_inr_per_usd=fx_inr_per_usd,
-        margin_floor=margin_floor,
+        tax_override=tax_override, rounding=rounding, fx_currency="USD",
+        fx_rate=fx_inr_per_usd, margin_floor=margin_floor,
     )
     priced = price(inp)
     taxable, tax_total, gross = _totals(priced)
