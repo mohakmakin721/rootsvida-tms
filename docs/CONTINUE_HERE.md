@@ -5,9 +5,9 @@ This is a faithful development log (what was built, every commit, the commands, 
 decisions, the state) — not a verbatim message transcript. Read this top-to-bottom
 and you have everything to resume.
 
-**As of:** git HEAD `6ff1c95` · 37 commits · **183 tests passing** · migrations
-through `0008` · Phase 1 ✅ complete · Phase 2 ✅ complete · **Phase 3 in progress
-(M7 of 10 done)**.
+**As of:** git HEAD `a70ba56` · 40 commits · **194 tests passing** · migrations
+through `0009` · Phase 1 ✅ complete · Phase 2 ✅ complete · **Phase 3 in progress
+(M8 of 10 done — client intake + builder overhaul)**.
 
 ---
 
@@ -123,22 +123,25 @@ Phase 3 — web app: itineraries & quotes (IN PROGRESS):
  eddacb8 docs: update CONTINUE_HERE through Phase 3 M5 (auth)
  4e7f9ca M6 supplier & rate browser UI (search/filter + freshness badges)
  aac2603 docs: update CONTINUE_HERE through Phase 3 M6 (supplier browser)
- 6ff1c95 M7 itinerary builder UI + live pricing preview (savepoint, persists nothing)   <-- HEAD
+ 6ff1c95 M7 itinerary builder UI + live pricing preview (savepoint, persists nothing)
+ a2c9be8 docs: update CONTINUE_HERE through Phase 3 M7 (itinerary builder)
+ ca03ae0 M8 backend — clients + project continuity + markup CRUD + any-currency FX (migration 0009)
+ a70ba56 M8 frontend — client intake, markup manager, state/currency pickers, tooltips   <-- HEAD
 ```
 
 ## 5. Repo layout (where things are)
 
 | Path | What |
 |---|---|
-| `services/domain-svc/app/models/` | SQLAlchemy models (canonical, provenance, review, tax, itinerary, quote) |
+| `services/domain-svc/app/models/` | SQLAlchemy models (canonical, provenance, review, tax, itinerary, quote, **client**) |
 | `services/domain-svc/app/services/` | `review`, `merge`, `tax` (place-of-supply), `pricing_bridge`, `quote`, `auth`, `suppliers` (browse, D-0002-safe), `freshness` (pure badge classifier), `itinerary` (build graph from a draft), `preview` (price a draft, savepoint-rollback, persists nothing) |
 | `services/domain-svc/app/security/` | Self-hosted auth primitives: `passwords` (PBKDF2), `tokens` (HMAC) |
-| `services/domain-svc/app/api/v1/` | FastAPI routers: `auth`, `review`, `suppliers`, `markup_rules`, `projects`, `itineraries`, `quotes`, `pricing` (live preview) |
+| `services/domain-svc/app/api/v1/` | FastAPI routers: `auth`, `review`, `suppliers`, `markup_rules` (CRUD), `clients`, `projects`, `itineraries`, `quotes`, `pricing` (live preview) |
 | `services/domain-svc/pricing/` | **Pure** deterministic pricing engine (`money`, `model`, `engine`, `tax`) |
 | `ingestion/` | Ingestion CLI + pipeline (`staging`, `normalize`, `migrate`, `dedup`, `quality`, `reingest`) |
 | `db/migrations/versions/` | Alembic migrations `0001`–`0007` |
-| `apps/web/` | Next.js UI (`/review` queue; `/suppliers` browser; `/builder` itinerary builder + live sidebar; quote/workspace = Phase 3 M8–10) |
-| `tests/` | 183 tests (pytest, from repo root) |
+| `apps/web/` | Next.js UI (`/review` queue; `/suppliers` browser; `/builder` client intake + itinerary builder + live sidebar; quote/workspace = Phase 3 M9–10) |
+| `tests/` | 194 tests (pytest, from repo root) |
 | `docs/` | DECISIONS, DATA_DICTIONARY, INGESTION, PRICING, ITINERARY_DRAFTING, TROUBLESHOOTING, PHASE{1,2}_HANDOFF |
 
 ## 6. Golden facts (must always reproduce)
@@ -172,10 +175,14 @@ frozen snapshot · M4 REST API · M5 auth + roles (FOSS) · M6 supplier/rate bro
 UI (D-0002-safe) · **M7 itinerary builder UI** (`/builder`: traveller groups, day
 strip with presence toggles, stay/shared/direct cost components, live cost sidebar
 via `POST /pricing/preview` which prices a draft in a rolled-back savepoint and
-persists nothing; reproduces Jaipur golden numbers live) ✅.
-**Phase 3 remaining (UI, build order):** **M8 traveller-group / presence editor
-polish + itinerary read/edit screens** ← next → M9 quote view UI (issue/revise,
-snapshot, PDF-less) → M10 **project workspace + first-class timeline tracking**
+persists nothing; reproduces Jaipur golden numbers live) · **M8 client intake +
+builder overhaul** (migration 0009 `clients` table with type/contact/notes +
+`projects.client_id`; `/clients` autopicker & project-code continuity; markup-rule
+CRUD + in-builder manager; preview generalised to any currency (₹ authoritative +
+converted figure, D-0001); builder gains client/project intake, named GST-state
+picker, currency selector, red required-asterisks + ℹ tooltips) ✅.
+**Phase 3 remaining (UI, build order):** **M9 quote view UI** (issue/revise,
+snapshot, PDF-less) ← next → M10 **project workspace + first-class timeline tracking**
 (status enquiry→quoted→confirmed→operating→closed + travel/quote-validity/payment/
 invoice dates) + exit test (rebuild Jaipur in the UI → golden numbers). As the UI
 lands, tighten `require_role(...)` onto sensitive endpoints (commercial data,
@@ -198,9 +205,9 @@ Phase 8 hardening.
 ## 10. To resume in a new session, say:
 
 > "Continue RootsVida TMS. Read docs/CONTINUE_HERE.md, docs/DECISIONS.md, and the
-> PHASE1/PHASE2 handoffs. We're on Phase 3, M7 done (HEAD 6ff1c95, 183 tests,
-> migrations through 0008). Start Phase 3 Milestone 8 (itinerary read/edit +
-> traveller-group screens)." — then follow the working agreements in §9.
+> PHASE1/PHASE2 handoffs. We're on Phase 3, M8 done (HEAD a70ba56, 194 tests,
+> migrations through 0009). Start Phase 3 Milestone 9 (quote view UI —
+> issue/revise/snapshot)." — then follow the working agreements in §9.
 
 (In a **Claude Code** session on this machine, per-project memory under
 `~/.claude/.../memory/` also persists: product-vision, rootsvida-tms-phase1,

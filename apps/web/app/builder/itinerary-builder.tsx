@@ -203,6 +203,12 @@ export function ItineraryBuilder({
     segments.length > 0 &&
     segments.every((s) => s.label.trim() && s.markup_rule_id && s.pax_count > 0);
 
+  // Only the itinerary-relevant intake fields feed pricing — so typing a client
+  // name or notes never re-triggers the live preview.
+  const iTitle = intake?.title ?? "";
+  const iStart = intake?.start_date ?? TODAY;
+  const iEnd = intake?.end_date ?? addDays(TODAY, 3);
+
   const payload = useMemo(() => {
     const seg = segments.map((s) => ({
       key: s.key,
@@ -239,9 +245,9 @@ export function ItineraryBuilder({
     }));
     return {
       itinerary: {
-        title: intake?.title.trim() || "Untitled itinerary",
-        start_date: intake?.start_date ?? TODAY,
-        end_date: intake?.end_date ?? addDays(TODAY, 3),
+        title: iTitle.trim() || "Untitled itinerary",
+        start_date: iStart,
+        end_date: iEnd,
         generated_by: "human",
         segments: seg,
         days: dayList,
@@ -253,7 +259,7 @@ export function ItineraryBuilder({
       fx_rate: fxRate ? fxRate : null,
       margin_floor: marginFloor ? marginFloor : null,
     };
-  }, [segments, days, intake, buyerStateCode, fxCurrency, fxRate, marginFloor]);
+  }, [segments, days, iTitle, iStart, iEnd, buyerStateCode, fxCurrency, fxRate, marginFloor]);
 
   const runPreview = useCallback(async (body: unknown) => {
     setLoading(true);
