@@ -5,10 +5,13 @@ This is a faithful development log (what was built, every commit, the commands, 
 decisions, the state) — not a verbatim message transcript. Read this top-to-bottom
 and you have everything to resume.
 
-**As of:** git HEAD `14bcad5` · 60 commits · **221 tests passing** · migrations
+**As of:** git HEAD `529553d` · 63 commits · **228 tests passing** · migrations
 through `0012` · Phase 1 ✅ · Phase 2 ✅ · Phase 3 ✅ · Phase 4 ✅ · **Security
-hardening ✅** (whole API behind auth + role gates; web login flow; users admin).
-Next: Phase 5 (agentic itinerary drafter).
+hardening ✅** (auth + role gates + web login + users admin). **Also done:**
+change-password (self + owner-reset); supplier/rate/room-type/contact CRUD in the
+browser (owner/ops_manager); state+city type-ahead filters; destinations search API
++ inline "new city"; reusable Combobox type-ahead (builder day-destination too);
+sorted pickers. Next: Phase 5 (agentic itinerary drafter).
 
 ---
 
@@ -155,7 +158,7 @@ Security hardening:
 | `services/domain-svc/app/models/` | SQLAlchemy models (canonical, provenance, review, tax, itinerary, quote, client, project_milestone, **invoice / document_counter**) |
 | `services/domain-svc/app/services/` | `review`, `merge`, `tax` (place-of-supply), `pricing_bridge`, `quote`, `auth`, `suppliers` (browse, D-0002-safe), `freshness` (pure badge classifier), `itinerary` (build graph from a draft), `preview` (price a draft, savepoint-rollback, persists nothing) |
 | `services/domain-svc/app/security/` | Self-hosted auth primitives: `passwords` (PBKDF2), `tokens` (HMAC) |
-| `services/domain-svc/app/api/v1/` | FastAPI routers: `auth`, `review`, `suppliers`, `markup_rules` (CRUD), `clients`, `projects`, `itineraries`, `quotes`, `invoices` (+ PDF), `pricing` (live preview) |
+| `services/domain-svc/app/api/v1/` | FastAPI routers: `auth` (+ change/reset pw, users mgmt), `review`, `suppliers` (+ CRUD), `destinations` (search + create), `markup_rules` (CRUD), `clients`, `projects`, `itineraries`, `quotes` (+ proposal PDF, costing XLSX), `invoices` (+ PDF), `pricing` (live preview) |
 | `services/domain-svc/pricing/` | **Pure** deterministic pricing engine (`money`, `model`, `engine`, `tax`) |
 | `ingestion/` | Ingestion CLI + pipeline (`staging`, `normalize`, `migrate`, `dedup`, `quality`, `reingest`) |
 | `db/migrations/versions/` | Alembic migrations `0001`–`0007` |
