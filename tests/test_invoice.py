@@ -21,6 +21,7 @@ from app.models import Itinerary, Organization, Project, Quote
 from app.models.enums import GstTreatment
 from app.services import invoice as inv
 from app.services.invoice import fiscal_year
+from app.services.invoice_pdf import amount_in_words, render_invoice_pdf, rupees
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -176,3 +177,32 @@ def _session_of(client: TestClient) -> Session:
     # The overridden get_session yields the test's db_session.
     gen = app.dependency_overrides[get_session]()
     return next(gen)
+
+
+# --- PDF ------------------------------------------------------------------- #
+
+
+def test_indian_formatting_and_words() -> None:
+    assert rupees(Decimal("169700.00")) == "Rs. 1,69,700.00"
+    assert rupees(Decimal("-169700.00")) == "(Rs. 1,69,700.00)"
+    assert amount_in_words(Decimal("169700.00")) == \
+        "Rupees One Lakh Sixty Nine Thousand Seven Hundred Only"
+    assert amount_in_words(Decimal("-0.50")).startswith("Minus Rupees Zero and Fifty Paise")
+
+
+def test_render_invoice_pdf(db_session: Session) -> None:
+    org = _org(db_session)
+    invoice = inv.generate_invoice(db_session, org.id, _issued_quote(db_session, org).id)
+    pdf = render_invoice_pdf(invoice, bank_details="HDFC Bank\nA/C 123456789\nIFSC HDFC0000001")
+    assert pdf[:5] == b"%PDF-"
+    assert len(pdf) > 1500
+
+
+def test_pdf_endpoint(api: tuple[TestClient, Organization]) -> None:
+    client, org = api
+    q = _issued_quote(_session_of(client), org)
+    inv_id = client.post(f"/api/v1/quotes/{q.id}/invoice").json()["id"]
+    res = client.get(f"/api/v1/invoices/{inv_id}/pdf")
+    assert res.status_code == 200
+    assert res.headers["content-type"] == "application/pdf"
+    assert res.content[:5] == b"%PDF-"

@@ -6,16 +6,18 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import current_org_id
+from app.config import get_settings
 from app.db import get_session
 from app.models import Invoice
 from app.models.enums import GstTreatment
 from app.services import invoice as invoice_service
+from app.services.invoice_pdf import render_invoice_pdf
 
 router = APIRouter(tags=["invoices"])
 
@@ -110,6 +112,22 @@ def get_invoice(
     org_id: uuid.UUID = Depends(current_org_id),
 ) -> Invoice:
     return _require(session, org_id, invoice_id)
+
+
+@router.get("/invoices/{invoice_id}/pdf")
+def invoice_pdf(
+    invoice_id: uuid.UUID,
+    session: Session = Depends(get_session),
+    org_id: uuid.UUID = Depends(current_org_id),
+) -> Response:
+    invoice = _require(session, org_id, invoice_id)
+    pdf = render_invoice_pdf(invoice, bank_details=get_settings().rv_seller_bank_details or None)
+    filename = invoice.number.replace("/", "-") + ".pdf"
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
 
 
 @router.get("/projects/{project_id}/invoices", response_model=list[InvoiceOut])

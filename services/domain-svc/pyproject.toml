@@ -14,6 +14,7 @@ dependencies = [
     "python-dotenv>=1.0",
     "structlog>=24.4",
     "openpyxl>=3.1",
+    "reportlab>=4.2",
 ]
 
 [project.optional-dependencies]
@@ -56,6 +57,11 @@ extend-immutable-calls = [
 python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
+
+# ReportLab ships no type stubs; the invoice PDF renderer is thin formatting code.
+[[tool.mypy.overrides]]
+module = ["reportlab.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
