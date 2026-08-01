@@ -5,10 +5,9 @@ This is a faithful development log (what was built, every commit, the commands, 
 decisions, the state) — not a verbatim message transcript. Read this top-to-bottom
 and you have everything to resume.
 
-**As of:** git HEAD `c405b95` · 50 commits · **210 tests passing** · migrations
+**As of:** git HEAD `6e8d8dd` · 52 commits · **213 tests passing** · migrations
 through `0012` · Phase 1 ✅ · Phase 2 ✅ · Phase 3 ✅ · **Phase 4 in progress — GST
-invoice done** (record + gapless numbering + immutable + credit notes + PDF).
-Remaining Phase 4: internal costing XLSX, client proposal PDF.
+invoice ✅ + client proposal PDF ✅**. Remaining Phase 4: internal costing XLSX.
 
 ---
 
@@ -137,7 +136,9 @@ Phase 3 — web app: itineraries & quotes (IN PROGRESS):
 Phase 4 — documents (IN PROGRESS):
  4602504 P4-M1 GST invoice record — gapless numbering + immutable + credit notes (migration 0012)
  5857160 P4-M2 invoice PDF (ReportLab) + GET /invoices/{id}/pdf
- c405b95 P4-M2 frontend — invoices in the project workspace (generate / PDF / credit note)   <-- HEAD
+ c405b95 P4-M2 frontend — invoices in the project workspace (generate / PDF / credit note)
+ 28d9b8f docs: CONTINUE_HERE through Phase 4 GST invoice
+ 6e8d8dd P4-M3 client proposal PDF (build_proposal + proposal_pdf; no internal figures)   <-- HEAD
 ```
 
 ## 5. Repo layout (where things are)
@@ -211,8 +212,13 @@ TAX INVOICE / CREDIT NOTE PDF (number `RV/2026-27/0001`, project code as Ref,
 Rs. + Indian grouping, amount-in-words); `/quotes/{id}/invoice`, `/invoices/{id}`,
 `/invoices/{id}/pdf`, `/invoices/{id}/credit-note`; UI in the project workspace
 (generate / download PDF / credit note). Invoice number format + Ref were owner
-choices. **Remaining Phase 4:** internal costing XLSX (openpyxl), client proposal
-PDF. **Later:** Phase 5 agentic itinerary drafter (dormant; docs/ITINERARY_DRAFTING.md).
+choices. **Client proposal PDF ✅** — `app/services/proposal.py` (`build_proposal`:
+client-facing view from a quote + itinerary — day-by-day, per-person prices in ₹ +
+chosen currency, inclusions from component KINDS so internal cost lines never leak)
++ `app/services/proposal_pdf.py` (ReportLab, branded); `GET /quotes/{id}/proposal.pdf`
+(any status); "Proposal" button on each quote card. **Remaining Phase 4:** internal
+costing XLSX (openpyxl — the behind-the-scenes cost breakdown, internal-only).
+**Later:** Phase 5 agentic itinerary drafter (dormant; docs/ITINERARY_DRAFTING.md).
 Still outstanding: tighten `require_role(...)` onto sensitive endpoints (commercial
 data, issuing quotes, invoicing).
 (status enquiry→quoted→confirmed→operating→closed + travel/quote-validity/payment/
@@ -237,9 +243,9 @@ Phase 8 hardening.
 ## 10. To resume in a new session, say:
 
 > "Continue RootsVida TMS. Read docs/CONTINUE_HERE.md, docs/DECISIONS.md, and the
-> PHASE1/PHASE2 handoffs. Phase 4 in progress: GST invoice + PDF DONE (HEAD
-> c405b95, 210 tests, migrations through 0012). Continue Phase 4 — internal costing
-> XLSX and the client proposal PDF." — then follow the working agreements in §9.
+> PHASE1/PHASE2 handoffs. Phase 4 in progress: GST invoice + client proposal PDF
+> DONE (HEAD 6e8d8dd, 213 tests, migrations through 0012). Continue Phase 4 — the
+> internal costing XLSX (openpyxl)." — then follow the working agreements in §9.
 
 (In a **Claude Code** session on this machine, per-project memory under
 `~/.claude/.../memory/` also persists: product-vision, rootsvida-tms-phase1,
