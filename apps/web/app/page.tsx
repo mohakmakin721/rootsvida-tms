@@ -1,9 +1,19 @@
 import Link from "next/link";
 
-export default function Home() {
+import { getMe } from "@/lib/api";
+
+import { UserBadge } from "./user-badge";
+
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const me = await getMe();
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
-      <h1 className="text-2xl font-semibold">RootsVida TMS</h1>
+      <div className="flex items-start justify-between gap-4">
+        <h1 className="text-2xl font-semibold">RootsVida TMS</h1>
+        {me && <UserBadge email={me.email} role={me.role} />}
+      </div>
       <p className="mt-2 text-neutral-600">
         Internal travel-management workspace — projects, itineraries and the
         supplier book.

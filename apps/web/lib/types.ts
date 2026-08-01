@@ -108,6 +108,16 @@ export interface Facets {
   categories: string[];
 }
 
+// --- Auth ---
+
+export interface CurrentUser {
+  id: string;
+  email: string;
+  name: string | null;
+  role: string;
+  is_active: boolean;
+}
+
 // --- Clients & projects (Phase 3 M8) ---
 
 export type ClientType = "individual" | "family" | "group" | "corporate";
