@@ -137,6 +137,14 @@ export interface ClientDetail extends ClientSummary {
 
 // --- Projects & quotes (Phase 3 M9) ---
 
+export type ProjectStatus =
+  | "enquiry"
+  | "quoted"
+  | "confirmed"
+  | "operating"
+  | "closed"
+  | "lost";
+
 export interface Project {
   id: string;
   code: string;
@@ -144,7 +152,21 @@ export interface Project {
   client_name: string;
   client_country: string | null;
   status: string;
+  status_changed_at: string | null;
+  travel_start: string | null;
+  travel_end: string | null;
   created_at: string;
+}
+
+export interface Milestone {
+  id: string;
+  project_id: string;
+  kind: string;
+  title: string;
+  due_date: string | null;
+  amount: string | null; // decimal string
+  done: boolean;
+  notes: string | null;
 }
 
 export interface ItineraryBrief {
@@ -157,12 +179,13 @@ export interface ItineraryBrief {
   status: string;
 }
 
+// Money fields arrive as decimal strings (FastAPI serializes Decimal as a string).
 export interface QuoteLine {
   description: string;
-  cost_per_pax: number | null;
-  sell_per_pax: number | null;
+  cost_per_pax: string | null;
+  sell_per_pax: string | null;
   pax_count: number | null;
-  line_total: number | null;
+  line_total: string | null;
 }
 
 export interface Quote {
@@ -171,16 +194,16 @@ export interface Quote {
   itinerary_id: string;
   version: number;
   status: string;
-  gst_rate: number;
+  gst_rate: string;
   gst_treatment: string;
   fx_currency: string | null;
-  fx_rate_inr_usd: number | null;
+  fx_rate_inr_usd: string | null;
   rounding_policy: string;
-  total_cost: number | null;
-  total_taxable: number | null;
-  total_tax: number | null;
-  total_gross: number | null;
-  margin_pct: number | null;
+  total_cost: string | null;
+  total_taxable: string | null;
+  total_tax: string | null;
+  total_gross: string | null;
+  margin_pct: string | null;
   engine_version: string | null;
   issued_at: string | null;
   valid_until: string | null;

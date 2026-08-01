@@ -3,9 +3,11 @@
 import { useState } from "react";
 
 import { CURRENCIES, GST_STATES, inr } from "@/lib/constants";
-import type { ItineraryBrief, Project, Quote } from "@/lib/types";
+import type { ItineraryBrief, Milestone, Project, Quote } from "@/lib/types";
 
 import { btnDark, btnLight, Field, inputCls } from "@/app/builder/ui";
+
+import { ProjectTimeline } from "./project-timeline";
 
 const QUOTE_TONE: Record<string, string> = {
   draft: "bg-neutral-100 text-neutral-600",
@@ -46,10 +48,12 @@ export function ProjectWorkspace({
   project,
   initialItineraries,
   initialQuotes,
+  initialMilestones,
 }: {
   project: Project;
   initialItineraries: ItineraryBrief[];
   initialQuotes: Quote[];
+  initialMilestones: Milestone[];
 }) {
   const [quotes, setQuotes] = useState<Quote[]>(initialQuotes);
   const [openForm, setOpenForm] = useState<string | null>(null); // "create:<itId>" | "revise:<qId>"
@@ -104,12 +108,7 @@ export function ProjectWorkspace({
   return (
     <div className="mt-3">
       <header className="mb-6">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-semibold">{project.code}</h1>
-          <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-medium capitalize text-neutral-600">
-            {project.status}
-          </span>
-        </div>
+        <h1 className="text-2xl font-semibold">{project.code}</h1>
         <p className="mt-1 text-sm text-neutral-600">
           {project.client_name}
           {project.client_country ? ` · ${project.client_country}` : ""}
@@ -121,6 +120,8 @@ export function ProjectWorkspace({
           {error}
         </p>
       )}
+
+      <ProjectTimeline project={project} initialMilestones={initialMilestones} />
 
       {/* Itineraries — each can be priced into a new quote. */}
       <section className="mb-8">
@@ -261,7 +262,7 @@ function QuoteCard({
 
   const converted =
     quote.fx_currency && quote.fx_rate_inr_usd && quote.total_gross
-      ? quote.total_gross / quote.fx_rate_inr_usd
+      ? Number(quote.total_gross) / Number(quote.fx_rate_inr_usd)
       : null;
 
   return (

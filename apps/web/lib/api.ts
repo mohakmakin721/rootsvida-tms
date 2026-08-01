@@ -2,6 +2,7 @@ import type {
   Facets,
   ItineraryBrief,
   MarkupRule,
+  Milestone,
   Project,
   Quote,
   ReviewItem,
@@ -85,4 +86,8 @@ export function listProjectItineraries(id: string): Promise<ItineraryBrief[]> {
 
 export function listProjectQuotes(id: string): Promise<Quote[]> {
   return getJSON<Quote[]>(`/projects/${id}/quotes`);
+}
+
+export function listProjectMilestones(id: string): Promise<Milestone[]> {
+  return getJSON<Milestone[]>(`/projects/${id}/milestones`);
 }
