@@ -108,6 +108,33 @@ export interface Facets {
   categories: string[];
 }
 
+// --- Clients & projects (Phase 3 M8) ---
+
+export type ClientType = "individual" | "family" | "group" | "corporate";
+
+export interface ClientSummary {
+  id: string;
+  name: string;
+  client_type: ClientType;
+  country: string | null;
+  email: string | null;
+  phone: string | null;
+  referral: string | null;
+  notes: string | null;
+  project_count: number;
+}
+
+export interface ProjectBrief {
+  id: string;
+  code: string;
+  status: string;
+  created_at: string;
+}
+
+export interface ClientDetail extends ClientSummary {
+  projects: ProjectBrief[];
+}
+
 // --- Itinerary builder + live pricing preview (Phase 3 M7) ---
 
 export type PaxClass = "indian" | "foreign" | "saarc";

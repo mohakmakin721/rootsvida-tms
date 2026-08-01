@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type {
   AllocationBasis,
@@ -14,6 +14,9 @@ import type {
   PreviewOut,
   SegmentDraft,
 } from "@/lib/types";
+
+import { ClientIntake, type IntakeValue } from "./client-intake";
+import { btnDark, btnLight, Card, Empty, Field, inputCls, Req } from "./ui";
 
 const OCCUPANCIES: Occupancy[] = ["single", "double", "triple"];
 const PAX_CLASSES: PaxClass[] = ["foreign", "indian", "saarc"];
@@ -61,18 +64,13 @@ export function ItineraryBuilder({
   destinations: DestinationFacet[];
 }) {
   const [markupRules, setMarkupRules] = useState<MarkupRule[]>(initialMarkupRules);
-  const [meta, setMeta] = useState({
-    client_name: "",
-    client_country: "",
-    code: "",
-    title: "",
-    start_date: TODAY,
-    end_date: addDays(TODAY, 3),
-  });
+  const [intake, setIntake] = useState<IntakeValue | null>(null);
+  const handleIntake = useCallback((v: IntakeValue) => setIntake(v), []);
   const [segments, setSegments] = useState<SegmentDraft[]>([]);
   const [days, setDays] = useState<DayDraft[]>([]);
   const [buyerStateCode, setBuyerStateCode] = useState("05");
-  const [fx, setFx] = useState("");
+  const [fxCurrency, setFxCurrency] = useState("USD");
+  const [fxRate, setFxRate] = useState("");
   const [marginFloor, setMarginFloor] = useState("");
 
   const [preview, setPreview] = useState<PreviewOut | null>(null);
@@ -124,7 +122,9 @@ export function ItineraryBuilder({
   function addDay() {
     setDays((prev) => {
       const n = prev.length + 1;
-      const date = prev.length ? addDays(prev[prev.length - 1].date, 1) : meta.start_date;
+      const date = prev.length
+        ? addDays(prev[prev.length - 1].date, 1)
+        : intake?.start_date ?? TODAY;
       const day: DayDraft = {
         day_number: n,
         date,
@@ -239,9 +239,9 @@ export function ItineraryBuilder({
     }));
     return {
       itinerary: {
-        title: meta.title.trim() || "Untitled itinerary",
-        start_date: meta.start_date,
-        end_date: meta.end_date,
+        title: intake?.title.trim() || "Untitled itinerary",
+        start_date: intake?.start_date ?? TODAY,
+        end_date: intake?.end_date ?? addDays(TODAY, 3),
         generated_by: "human",
         segments: seg,
         days: dayList,
@@ -249,10 +249,11 @@ export function ItineraryBuilder({
       buyer_state_code: buyerStateCode || null,
       buyer_country: "IN",
       rounding: "nearest_1",
-      fx_inr_per_usd: fx ? fx : null,
+      fx_currency: fxCurrency,
+      fx_rate: fxRate ? fxRate : null,
       margin_floor: marginFloor ? marginFloor : null,
     };
-  }, [segments, days, meta, buyerStateCode, fx, marginFloor]);
+  }, [segments, days, intake, buyerStateCode, fxCurrency, fxRate, marginFloor]);
 
   const runPreview = useCallback(async (body: unknown) => {
     setLoading(true);
@@ -306,25 +307,59 @@ export function ItineraryBuilder({
     }
   }
 
+  async function updateMarkupRule(id: string, patch: { label?: string; rate?: string; basis?: string }) {
+    const res = await fetch(`/api/v1/markup-rules/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    if (res.ok) {
+      const rule = (await res.json()) as MarkupRule;
+      setMarkupRules((prev) => prev.map((r) => (r.id === id ? rule : r)));
+    }
+  }
+
+  async function deleteMarkupRule(id: string): Promise<string | null> {
+    const res = await fetch(`/api/v1/markup-rules/${id}`, { method: "DELETE" });
+    if (res.ok) {
+      setMarkupRules((prev) => prev.filter((r) => r.id !== id));
+      return null;
+    }
+    const d = await res.json().catch(() => null);
+    return typeof d?.detail === "string" ? d.detail : "Could not delete rule.";
+  }
+
   // ---- save --------------------------------------------------------------- //
+  async function resolveProjectId(v: IntakeValue): Promise<string> {
+    // Continuing an existing project — no new project needed.
+    if (v.project.kind === "existing") return v.project.id;
+
+    // A new project: link an existing client, save a new one inline, or (fallback)
+    // carry a bare client name.
+    const projectBody: Record<string, unknown> = { code: v.project.code };
+    if (v.client.kind === "existing") projectBody.client_id = v.client.id;
+    else projectBody.client = v.client.data;
+
+    const res = await fetch("/api/v1/projects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(projectBody),
+    });
+    if (!res.ok) {
+      const d = await res.json().catch(() => null);
+      throw new Error(
+        typeof d?.detail === "string" ? d.detail : `Project create failed (${res.status}).`,
+      );
+    }
+    return (await res.json()).id as string;
+  }
+
   async function saveItinerary() {
+    if (!intake) return;
     setSave({ busy: true, error: null, okId: null });
     try {
-      const projRes = await fetch("/api/v1/projects", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          code: meta.code.trim() || `TP-${Date.now().toString().slice(-6)}`,
-          client_name: meta.client_name.trim() || "(unnamed client)",
-          client_country: meta.client_country.trim() || null,
-        }),
-      });
-      if (!projRes.ok) {
-        const d = await projRes.json().catch(() => null);
-        throw new Error(d?.detail ?? `Project create failed (${projRes.status}).`);
-      }
-      const project = await projRes.json();
-      const itRes = await fetch(`/api/v1/projects/${project.id}/itineraries`, {
+      const projectId = await resolveProjectId(intake);
+      const itRes = await fetch(`/api/v1/projects/${projectId}/itineraries`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload.itinerary),
@@ -345,7 +380,7 @@ export function ItineraryBuilder({
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
       <div className="space-y-6">
-        <ProjectMeta meta={meta} setMeta={setMeta} />
+        <ClientIntake onChange={handleIntake} />
         <SegmentSection
           segments={segments}
           markupRules={markupRules}
@@ -353,6 +388,8 @@ export function ItineraryBuilder({
           onUpdate={updateSegment}
           onRemove={removeSegment}
           onCreateRule={createMarkupRule}
+          onUpdateRule={updateMarkupRule}
+          onDeleteRule={deleteMarkupRule}
         />
         <DaysSection
           days={days}
@@ -375,11 +412,14 @@ export function ItineraryBuilder({
         ready={ready}
         buyerStateCode={buyerStateCode}
         setBuyerStateCode={setBuyerStateCode}
-        fx={fx}
-        setFx={setFx}
+        fxCurrency={fxCurrency}
+        setFxCurrency={setFxCurrency}
+        fxRate={fxRate}
+        setFxRate={setFxRate}
         marginFloor={marginFloor}
         setMarginFloor={setMarginFloor}
         onSave={saveItinerary}
+        canSave={!!intake?.ready}
         save={save}
       />
     </div>
@@ -390,51 +430,16 @@ export function ItineraryBuilder({
 // sections
 // ---------------------------------------------------------------------------- //
 
-function Card({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <section className="rounded-lg border border-neutral-200 bg-white p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-neutral-800">{title}</h2>
-        {action}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function ProjectMeta({
-  meta,
-  setMeta,
-}: {
-  meta: { client_name: string; client_country: string; code: string; title: string; start_date: string; end_date: string };
-  setMeta: (m: typeof meta) => void;
-}) {
-  const set = (patch: Partial<typeof meta>) => setMeta({ ...meta, ...patch });
-  return (
-    <Card title="Project">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Client name">
-          <input className={inputCls} value={meta.client_name} onChange={(e) => set({ client_name: e.target.value })} />
-        </Field>
-        <Field label="Project code">
-          <input className={inputCls} placeholder="TP-…" value={meta.code} onChange={(e) => set({ code: e.target.value })} />
-        </Field>
-        <Field label="Itinerary title">
-          <input className={inputCls} value={meta.title} onChange={(e) => set({ title: e.target.value })} />
-        </Field>
-        <Field label="Client country (ISO-2)">
-          <input className={inputCls} placeholder="IN, US, CL…" value={meta.client_country} onChange={(e) => set({ client_country: e.target.value })} />
-        </Field>
-        <Field label="Start date">
-          <input type="date" className={inputCls} value={meta.start_date} onChange={(e) => set({ start_date: e.target.value })} />
-        </Field>
-        <Field label="End date">
-          <input type="date" className={inputCls} value={meta.end_date} onChange={(e) => set({ end_date: e.target.value })} />
-        </Field>
-      </div>
-    </Card>
-  );
-}
+const SEGMENT_INFO = (
+  <>
+    Split the party into groups that share a room type and a pricing rule.
+    <br />• <b>Label</b> — a name like “Foreign Double”.
+    <br />• <b>Class</b> — foreign / indian / saarc; drives tax &amp; cost splits.
+    <br />• <b>Occupancy</b> — single / double / triple (the room-share divisor).
+    <br />• <b>Pax</b> — how many people in the group.
+    <br />• <b>Markup</b> — which margin rule applies (manage rules with “Rules”).
+  </>
+);
 
 function SegmentSection({
   segments,
@@ -443,6 +448,8 @@ function SegmentSection({
   onUpdate,
   onRemove,
   onCreateRule,
+  onUpdateRule,
+  onDeleteRule,
 }: {
   segments: SegmentDraft[];
   markupRules: MarkupRule[];
@@ -450,90 +457,176 @@ function SegmentSection({
   onUpdate: (key: string, patch: Partial<SegmentDraft>) => void;
   onRemove: (key: string) => void;
   onCreateRule: (label: string, basis: string, rate: string) => void;
+  onUpdateRule: (id: string, patch: { label?: string; rate?: string; basis?: string }) => void;
+  onDeleteRule: (id: string) => Promise<string | null>;
 }) {
+  const [showRules, setShowRules] = useState(false);
   return (
     <Card
       title="Traveller groups"
+      info={SEGMENT_INFO}
       action={
-        <button onClick={onAdd} className={btnDark}>
-          + Add group
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowRules((s) => !s)} className={btnLight}>
+            {showRules ? "Hide rules" : "Markup rules"}
+          </button>
+          <button onClick={onAdd} className={btnDark}>
+            + Add group
+          </button>
+        </div>
       }
     >
-      {markupRules.length === 0 && <MarkupRuleCreator onCreate={onCreateRule} />}
+      {(showRules || markupRules.length === 0) && (
+        <MarkupRuleManager
+          rules={markupRules}
+          onCreate={onCreateRule}
+          onUpdate={onUpdateRule}
+          onDelete={onDeleteRule}
+        />
+      )}
       {segments.length === 0 ? (
         <Empty>Add a traveller group to begin — e.g. “Foreign Double”, 6 pax.</Empty>
       ) : (
-        <div className="space-y-2">
-          {segments.map((s) => (
-            <div key={s.key} className="grid grid-cols-12 items-center gap-2">
+        <>
+          <div className="mb-1 grid grid-cols-12 gap-2 px-0.5 text-[10px] uppercase tracking-wide text-neutral-400">
+            <span className="col-span-3">Label<Req /></span>
+            <span className="col-span-2">Class<Req /></span>
+            <span className="col-span-2">Occupancy<Req /></span>
+            <span className="col-span-1">Pax<Req /></span>
+            <span className="col-span-3">Markup<Req /></span>
+            <span className="col-span-1" />
+          </div>
+          <div className="space-y-2">
+            {segments.map((s) => (
+              <div key={s.key} className="grid grid-cols-12 items-center gap-2">
+                <input
+                  className={`${inputCls} col-span-3`}
+                  placeholder="Label"
+                  value={s.label}
+                  onChange={(e) => onUpdate(s.key, { label: e.target.value })}
+                />
+                <select className={`${inputCls} col-span-2`} value={s.pax_class} onChange={(e) => onUpdate(s.key, { pax_class: e.target.value as PaxClass })}>
+                  {PAX_CLASSES.map((p) => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+                <select className={`${inputCls} col-span-2`} value={s.occupancy} onChange={(e) => onUpdate(s.key, { occupancy: e.target.value as Occupancy })}>
+                  {OCCUPANCIES.map((o) => (
+                    <option key={o} value={o}>{o}</option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  min={1}
+                  className={`${inputCls} col-span-1`}
+                  value={s.pax_count}
+                  onChange={(e) => onUpdate(s.key, { pax_count: Math.max(1, Number(e.target.value)) })}
+                />
+                <select
+                  className={`${inputCls} col-span-3 ${s.markup_rule_id ? "" : "border-red-300"}`}
+                  value={s.markup_rule_id}
+                  onChange={(e) => onUpdate(s.key, { markup_rule_id: e.target.value })}
+                >
+                  <option value="">— markup —</option>
+                  {markupRules.map((r) => (
+                    <option key={r.id} value={r.id}>{r.label}</option>
+                  ))}
+                </select>
+                <button onClick={() => onRemove(s.key)} className="col-span-1 text-neutral-400 hover:text-red-600" aria-label="Remove group">
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </Card>
+  );
+}
+
+function MarkupRuleManager({
+  rules,
+  onCreate,
+  onUpdate,
+  onDelete,
+}: {
+  rules: MarkupRule[];
+  onCreate: (label: string, basis: string, rate: string) => void;
+  onUpdate: (id: string, patch: { label?: string; rate?: string; basis?: string }) => void;
+  onDelete: (id: string) => Promise<string | null>;
+}) {
+  const [label, setLabel] = useState("Foreign 15%");
+  const [rate, setRate] = useState("0.15");
+  const [basis, setBasis] = useState("markup_on_cost");
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <div className="mb-3 rounded-md border border-neutral-200 bg-neutral-50 p-3">
+      <p className="mb-2 text-xs font-medium text-neutral-600">
+        Markup rules — your reusable margin policy. Rate is a fraction (0.15 = 15%).
+      </p>
+      {rules.length > 0 && (
+        <div className="mb-2 space-y-1.5">
+          {rules.map((r) => (
+            <div key={r.id} className="grid grid-cols-12 items-center gap-2">
               <input
-                className={`${inputCls} col-span-3`}
-                placeholder="Label"
-                value={s.label}
-                onChange={(e) => onUpdate(s.key, { label: e.target.value })}
-              />
-              <select className={`${inputCls} col-span-2`} value={s.pax_class} onChange={(e) => onUpdate(s.key, { pax_class: e.target.value as PaxClass })}>
-                {PAX_CLASSES.map((p) => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
-              <select className={`${inputCls} col-span-2`} value={s.occupancy} onChange={(e) => onUpdate(s.key, { occupancy: e.target.value as Occupancy })}>
-                {OCCUPANCIES.map((o) => (
-                  <option key={o} value={o}>{o}</option>
-                ))}
-              </select>
-              <input
-                type="number"
-                min={1}
-                className={`${inputCls} col-span-1`}
-                value={s.pax_count}
-                onChange={(e) => onUpdate(s.key, { pax_count: Math.max(1, Number(e.target.value)) })}
+                className={`${inputCls} col-span-5`}
+                value={r.label}
+                onChange={(e) => onUpdate(r.id, { label: e.target.value })}
               />
               <select
-                className={`${inputCls} col-span-3`}
-                value={s.markup_rule_id}
-                onChange={(e) => onUpdate(s.key, { markup_rule_id: e.target.value })}
+                className={`${inputCls} col-span-4`}
+                value={r.basis}
+                onChange={(e) => onUpdate(r.id, { basis: e.target.value })}
               >
-                <option value="">— markup —</option>
-                {markupRules.map((r) => (
-                  <option key={r.id} value={r.id}>{r.label}</option>
-                ))}
+                <option value="markup_on_cost">markup on cost</option>
+                <option value="margin_on_sell">margin on sell</option>
               </select>
-              <button onClick={() => onRemove(s.key)} className="col-span-1 text-neutral-400 hover:text-red-600" aria-label="Remove group">
+              <input
+                className={`${inputCls} col-span-2`}
+                value={r.rate}
+                onChange={(e) => onUpdate(r.id, { rate: e.target.value })}
+              />
+              <button
+                onClick={async () => setError(await onDelete(r.id))}
+                className="col-span-1 text-neutral-400 hover:text-red-600"
+                aria-label="Delete rule"
+              >
                 ✕
               </button>
             </div>
           ))}
         </div>
       )}
-    </Card>
-  );
-}
-
-function MarkupRuleCreator({ onCreate }: { onCreate: (label: string, basis: string, rate: string) => void }) {
-  const [label, setLabel] = useState("Foreign 15%");
-  const [rate, setRate] = useState("0.15");
-  const [basis, setBasis] = useState("markup_on_cost");
-  return (
-    <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 p-3">
-      <p className="mb-2 text-xs text-amber-800">
-        No markup rules yet — create one so groups can be priced.
-      </p>
-      <div className="flex flex-wrap items-end gap-2">
-        <input className={inputCls} value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Label" />
+      {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
+      <div className="flex flex-wrap items-end gap-2 border-t border-neutral-200 pt-2">
+        <input className={`${inputCls} flex-1`} value={label} onChange={(e) => setLabel(e.target.value)} placeholder="New rule label" />
         <select className={inputCls} value={basis} onChange={(e) => setBasis(e.target.value)}>
           <option value="markup_on_cost">markup on cost</option>
           <option value="margin_on_sell">margin on sell</option>
         </select>
-        <input className={`${inputCls} w-24`} value={rate} onChange={(e) => setRate(e.target.value)} placeholder="0.15" />
-        <button className={btnDark} onClick={() => onCreate(label, basis, rate)}>
-          Create rule
+        <input className={`${inputCls} w-20`} value={rate} onChange={(e) => setRate(e.target.value)} placeholder="0.15" />
+        <button className={btnDark} onClick={() => { onCreate(label, basis, rate); setError(null); }}>
+          + Add rule
         </button>
       </div>
     </div>
   );
 }
+
+const DAYS_INFO = (
+  <>
+    One row per day of the trip.
+    <br />• <b>Present</b> — tap a group to mark it away that day; a group that’s
+    away doesn’t pay for that day’s hotel.
+    <br />• <b>Add cost</b> — a stay (room rate), transport, guide, tickets, etc.
+    <br />• <b>Allocation</b> — “all travellers” splits across everyone; “by pax
+    class” within one class; “specific groups” across the ones you pick; “per-pax”
+    is a per-person amount.
+    <br />A <b>stay</b> must apply to groups sharing one occupancy (single room →
+    single group; double room → the double groups).
+  </>
+);
 
 function DaysSection({
   days,
@@ -561,6 +654,7 @@ function DaysSection({
   return (
     <Card
       title="Days"
+      info={DAYS_INFO}
       action={
         <button onClick={onAddDay} className={btnDark}>
           + Add day
@@ -753,6 +847,31 @@ function ComponentRow({
 // live cost sidebar
 // ---------------------------------------------------------------------------- //
 
+// Indian GST state codes (buyer's state → tax split). Seller is 05, Uttarakhand.
+const GST_STATES: { code: string; name: string }[] = [
+  { code: "01", name: "Jammu & Kashmir" }, { code: "02", name: "Himachal Pradesh" },
+  { code: "03", name: "Punjab" }, { code: "04", name: "Chandigarh" },
+  { code: "05", name: "Uttarakhand" }, { code: "06", name: "Haryana" },
+  { code: "07", name: "Delhi" }, { code: "08", name: "Rajasthan" },
+  { code: "09", name: "Uttar Pradesh" }, { code: "10", name: "Bihar" },
+  { code: "11", name: "Sikkim" }, { code: "12", name: "Arunachal Pradesh" },
+  { code: "13", name: "Nagaland" }, { code: "14", name: "Manipur" },
+  { code: "15", name: "Mizoram" }, { code: "16", name: "Tripura" },
+  { code: "17", name: "Meghalaya" }, { code: "18", name: "Assam" },
+  { code: "19", name: "West Bengal" }, { code: "20", name: "Jharkhand" },
+  { code: "21", name: "Odisha" }, { code: "22", name: "Chhattisgarh" },
+  { code: "23", name: "Madhya Pradesh" }, { code: "24", name: "Gujarat" },
+  { code: "26", name: "Dadra & Nagar Haveli and Daman & Diu" },
+  { code: "27", name: "Maharashtra" }, { code: "29", name: "Karnataka" },
+  { code: "30", name: "Goa" }, { code: "31", name: "Lakshadweep" },
+  { code: "32", name: "Kerala" }, { code: "33", name: "Tamil Nadu" },
+  { code: "34", name: "Puducherry" }, { code: "35", name: "Andaman & Nicobar" },
+  { code: "36", name: "Telangana" }, { code: "37", name: "Andhra Pradesh" },
+  { code: "38", name: "Ladakh" }, { code: "97", name: "Other territory" },
+];
+
+const CURRENCIES = ["USD", "EUR", "GBP", "AUD", "CAD", "AED", "SGD", "JPY", "CHF", "NZD"];
+
 function Sidebar({
   preview,
   loading,
@@ -760,11 +879,14 @@ function Sidebar({
   ready,
   buyerStateCode,
   setBuyerStateCode,
-  fx,
-  setFx,
+  fxCurrency,
+  setFxCurrency,
+  fxRate,
+  setFxRate,
   marginFloor,
   setMarginFloor,
   onSave,
+  canSave,
   save,
 }: {
   preview: PreviewOut | null;
@@ -773,11 +895,14 @@ function Sidebar({
   ready: boolean;
   buyerStateCode: string;
   setBuyerStateCode: (v: string) => void;
-  fx: string;
-  setFx: (v: string) => void;
+  fxCurrency: string;
+  setFxCurrency: (v: string) => void;
+  fxRate: string;
+  setFxRate: (v: string) => void;
   marginFloor: string;
   setMarginFloor: (v: string) => void;
   onSave: () => void;
+  canSave: boolean;
   save: { busy: boolean; error: string | null; okId: string | null };
 }) {
   return (
@@ -788,14 +913,30 @@ function Sidebar({
           {loading && <span className="text-xs text-neutral-400">pricing…</span>}
         </div>
 
-        <div className="mb-3 grid grid-cols-3 gap-2">
-          <Field label="Buyer state">
-            <input className={inputCls} value={buyerStateCode} onChange={(e) => setBuyerStateCode(e.target.value)} placeholder="05" />
+        <div className="mb-3 space-y-2">
+          <Field label="Buyer’s state (sets GST)">
+            <select className={inputCls} value={buyerStateCode} onChange={(e) => setBuyerStateCode(e.target.value)}>
+              {GST_STATES.map((s) => (
+                <option key={s.code} value={s.code}>
+                  {s.code} — {s.name}
+                  {s.code === "05" ? " (same as seller)" : ""}
+                </option>
+              ))}
+            </select>
           </Field>
-          <Field label="FX ₹/USD">
-            <input className={inputCls} value={fx} onChange={(e) => setFx(e.target.value)} placeholder="95" />
-          </Field>
-          <Field label="Floor %">
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Quote currency">
+              <select className={inputCls} value={fxCurrency} onChange={(e) => setFxCurrency(e.target.value)}>
+                {CURRENCIES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label={`₹ per 1 ${fxCurrency}`}>
+              <input className={inputCls} value={fxRate} onChange={(e) => setFxRate(e.target.value)} placeholder="95" />
+            </Field>
+          </div>
+          <Field label="Minimum margin (fraction, e.g. 0.10)">
             <input className={inputCls} value={marginFloor} onChange={(e) => setMarginFloor(e.target.value)} placeholder="0.10" />
           </Field>
         </div>
@@ -829,7 +970,7 @@ function Sidebar({
               <Row label={`GST (${preview.gst_treatment})`} value={`${preview.gst_rate}%`} />
               {preview.fx &&
                 Object.entries(preview.fx).map(([cur, v]) => (
-                  <Row key={cur} label={`≈ ${cur}`} value={`${cur} ${Number(v).toLocaleString()}`} />
+                  <Row key={cur} label={`≈ in ${cur}`} value={`${cur} ${Number(v).toLocaleString()}`} strong />
                 ))}
             </dl>
             {preview.below_floor && (
@@ -845,14 +986,19 @@ function Sidebar({
       </div>
 
       <div className="rounded-lg border border-neutral-200 bg-white p-4">
-        <button onClick={onSave} disabled={!ready || save.busy} className={`${btnDark} w-full justify-center disabled:opacity-50`}>
+        <button onClick={onSave} disabled={!ready || !canSave || save.busy} className={`${btnDark} w-full justify-center disabled:opacity-50`}>
           {save.busy ? "Saving…" : "Save itinerary"}
         </button>
+        {!canSave && (
+          <p className="mt-2 text-xs text-neutral-400">
+            Fill the required client &amp; project fields (marked <span className="text-red-500">*</span>) to save.
+          </p>
+        )}
         {save.error && <p className="mt-2 text-xs text-red-700">{save.error}</p>}
         {save.okId && (
           <p className="mt-2 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-xs text-emerald-800">
-            Saved. Itinerary <code>{save.okId.slice(0, 8)}</code> created — quote it from
-            the API (<code>POST /itineraries/{save.okId.slice(0, 8)}…/quotes</code>).
+            Saved. Itinerary <code>{save.okId.slice(0, 8)}</code> created and stored under its
+            project.
           </p>
         )}
       </div>
@@ -872,31 +1018,5 @@ function Row({ label, value, strong, tone }: { label: string; value: string; str
         {value}
       </dd>
     </div>
-  );
-}
-
-// ---------------------------------------------------------------------------- //
-// tiny shared bits
-// ---------------------------------------------------------------------------- //
-
-const inputCls =
-  "rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-sm focus:border-neutral-500 focus:outline-none";
-const btnDark =
-  "inline-flex rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800";
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="flex flex-col gap-1">
-      <span className="text-xs text-neutral-500">{label}</span>
-      {children}
-    </label>
-  );
-}
-
-function Empty({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="rounded-md border border-dashed border-neutral-200 px-3 py-3 text-xs text-neutral-400">
-      {children}
-    </p>
   );
 }
