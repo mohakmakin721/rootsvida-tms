@@ -442,6 +442,15 @@ function QuoteCard({
               {reviseOpen ? "Cancel" : "Revise"}
             </button>
           )}
+          <a
+            href={`/api/v1/quotes/${quote.id}/proposal.pdf`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={btnLight}
+            title="Client-facing proposal PDF"
+          >
+            Proposal
+          </a>
           <button className="text-neutral-400" onClick={() => setOpen((o) => !o)} aria-label="Toggle detail">
             {open ? "▲" : "▼"}
           </button>

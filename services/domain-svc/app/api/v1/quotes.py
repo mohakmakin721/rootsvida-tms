@@ -7,7 +7,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -16,7 +16,9 @@ from app.api.deps import current_org_id
 from app.db import get_session
 from app.models import Quote
 from app.models.enums import GstTreatment, PlaceOfSupply
+from app.services import proposal as proposal_service
 from app.services import quote as quote_service
+from app.services.proposal_pdf import render_proposal_pdf
 from pricing import model as pm
 from pricing.engine import MarginBelowFloor
 
@@ -107,6 +109,25 @@ def get_quote(
     org_id: uuid.UUID = Depends(current_org_id),
 ) -> Quote:
     return _require(session, org_id, quote_id)
+
+
+@router.get("/quotes/{quote_id}/proposal.pdf")
+def quote_proposal_pdf(
+    quote_id: uuid.UUID,
+    session: Session = Depends(get_session),
+    org_id: uuid.UUID = Depends(current_org_id),
+) -> Response:
+    try:
+        data = proposal_service.build_proposal(session, org_id, quote_id)
+    except proposal_service.ProposalError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(exc)) from None
+    pdf = render_proposal_pdf(data)
+    code = data.get("project_code") or "proposal"
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="proposal-{code}.pdf"'},
+    )
 
 
 @router.get("/projects/{project_id}/quotes", response_model=list[QuoteOut])
