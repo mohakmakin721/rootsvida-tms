@@ -5,9 +5,10 @@ This is a faithful development log (what was built, every commit, the commands, 
 decisions, the state) — not a verbatim message transcript. Read this top-to-bottom
 and you have everything to resume.
 
-**As of:** git HEAD `6e8d8dd` · 52 commits · **213 tests passing** · migrations
-through `0012` · Phase 1 ✅ · Phase 2 ✅ · Phase 3 ✅ · **Phase 4 in progress — GST
-invoice ✅ + client proposal PDF ✅**. Remaining Phase 4: internal costing XLSX.
+**As of:** git HEAD `97375d6` · 54 commits · **215 tests passing** · migrations
+through `0012` · Phase 1 ✅ · Phase 2 ✅ · Phase 3 ✅ · **Phase 4 ✅ COMPLETE**
+(GST invoice PDF, client proposal PDF, internal costing XLSX). Next: Phase 5
+(agentic itinerary drafter) — or hardening (role-gate sensitive endpoints).
 
 ---
 
@@ -138,7 +139,9 @@ Phase 4 — documents (IN PROGRESS):
  5857160 P4-M2 invoice PDF (ReportLab) + GET /invoices/{id}/pdf
  c405b95 P4-M2 frontend — invoices in the project workspace (generate / PDF / credit note)
  28d9b8f docs: CONTINUE_HERE through Phase 4 GST invoice
- 6e8d8dd P4-M3 client proposal PDF (build_proposal + proposal_pdf; no internal figures)   <-- HEAD
+ 6e8d8dd P4-M3 client proposal PDF (build_proposal + proposal_pdf; no internal figures)
+ 1b1da83 docs: CONTINUE_HERE through Phase 4 client proposal
+ 97375d6 P4-M4 internal costing XLSX (openpyxl; build-up + margin; Phase 4 complete)   <-- HEAD
 ```
 
 ## 5. Repo layout (where things are)
@@ -216,11 +219,17 @@ choices. **Client proposal PDF ✅** — `app/services/proposal.py` (`build_prop
 client-facing view from a quote + itinerary — day-by-day, per-person prices in ₹ +
 chosen currency, inclusions from component KINDS so internal cost lines never leak)
 + `app/services/proposal_pdf.py` (ReportLab, branded); `GET /quotes/{id}/proposal.pdf`
-(any status); "Proposal" button on each quote card. **Remaining Phase 4:** internal
-costing XLSX (openpyxl — the behind-the-scenes cost breakdown, internal-only).
-**Later:** Phase 5 agentic itinerary drafter (dormant; docs/ITINERARY_DRAFTING.md).
-Still outstanding: tighten `require_role(...)` onto sensitive endpoints (commercial
-data, issuing quotes, invoicing).
+(any status); "Proposal" button on each quote card. **Internal costing XLSX ✅** —
+`app/services/costing_xlsx.py` reads the quote's frozen snapshot into a 3-sheet
+openpyxl workbook (Costing build-up + totals + true margin; Cost inputs; Build-up
+trace); `GET /quotes/{id}/costing.xlsx`; "Costing" button on each quote card.
+CONFIDENTIAL (shows margin + internal fee lines) — must be role-gated when auth
+lands. **Phase 4 ✅ COMPLETE.**
+**What's next (owner's choice):** Phase 5 agentic itinerary drafter (dormant; spec
+in docs/ITINERARY_DRAFTING.md; outputs in the builder's input format; needs the
+pre-approved Anthropic API) — OR a hardening pass: wire `current_user`/`require_role`
+onto the app so sensitive surfaces (commercial data, issuing quotes, invoicing,
+costing XLSX) are gated (needs a login flow in the web UI first).
 (status enquiry→quoted→confirmed→operating→closed + travel/quote-validity/payment/
 invoice dates) + exit test (rebuild Jaipur in the UI → golden numbers). As the UI
 lands, tighten `require_role(...)` onto sensitive endpoints (commercial data,
@@ -243,9 +252,10 @@ Phase 8 hardening.
 ## 10. To resume in a new session, say:
 
 > "Continue RootsVida TMS. Read docs/CONTINUE_HERE.md, docs/DECISIONS.md, and the
-> PHASE1/PHASE2 handoffs. Phase 4 in progress: GST invoice + client proposal PDF
-> DONE (HEAD 6e8d8dd, 213 tests, migrations through 0012). Continue Phase 4 — the
-> internal costing XLSX (openpyxl)." — then follow the working agreements in §9.
+> PHASE1/PHASE2 handoffs. Phase 4 is COMPLETE — GST invoice PDF, client proposal
+> PDF, internal costing XLSX all done (HEAD 97375d6, 215 tests, migrations through
+> 0012). Start Phase 5 (agentic itinerary drafter) — or a security-hardening pass
+> (role-gate sensitive endpoints)." — then follow the working agreements in §9.
 
 (In a **Claude Code** session on this machine, per-project memory under
 `~/.claude/.../memory/` also persists: product-vision, rootsvida-tms-phase1,
