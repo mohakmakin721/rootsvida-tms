@@ -28,6 +28,31 @@ export function UsersAdmin({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState({ email: "", password: "", name: "", role: "readonly" });
+  const [resetFor, setResetFor] = useState<string | null>(null);
+  const [resetPw, setResetPw] = useState("");
+  const [resetDone, setResetDone] = useState<string | null>(null);
+
+  async function resetPassword(id: string) {
+    if (resetPw.length < 6) {
+      setError("New password must be at least 6 characters.");
+      return;
+    }
+    setError(null);
+    const res = await fetch(`/api/v1/auth/users/${id}/reset-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ new_password: resetPw }),
+    });
+    if (res.ok) {
+      setResetFor(null);
+      setResetPw("");
+      setResetDone(id);
+      setTimeout(() => setResetDone(null), 3000);
+    } else {
+      const d = await res.json().catch(() => null);
+      setError(typeof d?.detail === "string" ? d.detail : `Could not reset password (${res.status}).`);
+    }
+  }
 
   async function refresh() {
     const res = await fetch("/api/v1/auth/users", { cache: "no-store" });
@@ -95,6 +120,7 @@ export function UsersAdmin({
               <th className="px-4 py-2 font-medium">User</th>
               <th className="px-4 py-2 font-medium">Role</th>
               <th className="px-4 py-2 font-medium">Status</th>
+              <th className="px-4 py-2 font-medium text-right">Password</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-100">
@@ -139,6 +165,35 @@ export function UsersAdmin({
                         title="Click to reactivate"
                       >
                         Inactive
+                      </button>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {resetFor === u.id ? (
+                      <span className="inline-flex items-center gap-1">
+                        <input
+                          type="password"
+                          autoComplete="new-password"
+                          placeholder="New password"
+                          className={`${inputCls} w-36`}
+                          value={resetPw}
+                          onChange={(e) => setResetPw(e.target.value)}
+                        />
+                        <button onClick={() => resetPassword(u.id)} className="rounded-md bg-neutral-900 px-2 py-1 text-xs font-medium text-white hover:bg-neutral-800">
+                          Save
+                        </button>
+                        <button onClick={() => { setResetFor(null); setResetPw(""); }} className="text-xs text-neutral-400 hover:text-neutral-700">
+                          Cancel
+                        </button>
+                      </span>
+                    ) : resetDone === u.id ? (
+                      <span className="text-xs text-emerald-600">Reset ✓</span>
+                    ) : (
+                      <button
+                        onClick={() => { setResetFor(u.id); setResetPw(""); }}
+                        className="text-xs text-neutral-500 underline hover:text-neutral-800"
+                      >
+                        Reset password
                       </button>
                     )}
                   </td>

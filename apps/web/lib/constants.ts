@@ -23,7 +23,8 @@ export const GST_STATES: { code: string; name: string }[] = [
   { code: "38", name: "Ladakh" }, { code: "97", name: "Other territory" },
 ];
 
-export const CURRENCIES = ["USD", "EUR", "GBP", "AUD", "CAD", "AED", "SGD", "JPY", "CHF", "NZD"];
+// Kept in ascending order for tidy pickers.
+export const CURRENCIES = ["AED", "AUD", "CAD", "CHF", "EUR", "GBP", "INR", "JPY", "NZD", "SGD", "USD"];
 
 /** Format an INR amount for display. */
 export function inr(v: string | number): string {

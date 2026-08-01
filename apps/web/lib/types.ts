@@ -53,6 +53,7 @@ export interface SupplierPage {
 }
 
 export interface SupplierContact {
+  id: string;
   person_name: string | null;
   role: string | null;
   phone_e164: string | null;
@@ -100,11 +101,13 @@ export interface SupplierDetail extends SupplierSummary {
 export interface DestinationFacet {
   id: string;
   name: string;
+  state: string | null;
   supplier_count: number;
 }
 
 export interface Facets {
   destinations: DestinationFacet[];
+  states: string[];
   categories: string[];
 }
 

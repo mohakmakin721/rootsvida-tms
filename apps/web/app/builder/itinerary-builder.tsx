@@ -17,6 +17,7 @@ import type {
   SegmentDraft,
 } from "@/lib/types";
 
+import { Combobox } from "@/components/combobox";
 import { CURRENCIES, GST_STATES, inr } from "@/lib/constants";
 
 import { ClientIntake, type IntakeValue } from "./client-intake";
@@ -685,16 +686,18 @@ function DaysSection({
                   value={d.date}
                   onChange={(e) => onUpdateDay(idx, { date: e.target.value })}
                 />
-                <select
-                  className={`${inputCls} w-44`}
-                  value={d.destination_id ?? ""}
-                  onChange={(e) => onUpdateDay(idx, { destination_id: e.target.value || null })}
-                >
-                  <option value="">— destination —</option>
-                  {destinations.map((dest) => (
-                    <option key={dest.id} value={dest.id}>{dest.name}</option>
-                  ))}
-                </select>
+                <div className="w-52">
+                  <Combobox
+                    placeholder="Destination…"
+                    value={d.destination_id}
+                    onChange={(v) => onUpdateDay(idx, { destination_id: v })}
+                    options={destinations.map((dest) => ({
+                      value: dest.id,
+                      label: dest.name,
+                      sublabel: dest.state ?? undefined,
+                    }))}
+                  />
+                </div>
                 <button onClick={() => onRemoveDay(idx)} className="ml-auto text-neutral-400 hover:text-red-600" aria-label="Remove day">
                   ✕
                 </button>

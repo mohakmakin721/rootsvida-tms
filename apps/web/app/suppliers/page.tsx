@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { getSupplierFacets, listSuppliers } from "@/lib/api";
+import { getMe, getSupplierFacets, listSuppliers } from "@/lib/api";
 import type { Facets, SupplierPage } from "@/lib/types";
 
 import { SupplierBrowser } from "./supplier-browser";
@@ -10,8 +10,10 @@ export const dynamic = "force-dynamic";
 
 export default async function SuppliersPage() {
   let page: SupplierPage | null = null;
-  let facets: Facets = { destinations: [], categories: [] };
+  let facets: Facets = { destinations: [], states: [], categories: [] };
   let error: string | null = null;
+  const me = await getMe();
+  const canEdit = me?.role === "owner" || me?.role === "ops_manager";
   try {
     [page, facets] = await Promise.all([listSuppliers(50), getSupplierFacets()]);
   } catch (e) {
@@ -29,6 +31,7 @@ export default async function SuppliersPage() {
           Search the supplier book and open any supplier to see its contacts, room
           types and rates. The badge shows rate freshness at a glance — commission
           and margin are never shown here.
+          {canEdit && " You can add, edit and remove suppliers and rates here."}
         </p>
       </header>
 
@@ -42,7 +45,7 @@ export default async function SuppliersPage() {
           </p>
         </div>
       ) : (
-        <SupplierBrowser initialPage={page!} facets={facets} />
+        <SupplierBrowser initialPage={page!} facets={facets} canEdit={canEdit} />
       )}
     </main>
   );
