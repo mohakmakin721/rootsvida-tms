@@ -47,3 +47,18 @@ def create_user(
     session.add(user)
     session.flush()
     return user
+
+
+def change_password(session: Session, user: User, current: str, new: str) -> bool:
+    """Change `user`'s password after verifying the current one. False if it's wrong."""
+    if not verify_password(current, user.password_hash):
+        return False
+    user.password_hash = hash_password(new)
+    session.flush()
+    return True
+
+
+def set_password(session: Session, user: User, new: str) -> None:
+    """Set a password without the current one — for an owner resetting a teammate."""
+    user.password_hash = hash_password(new)
+    session.flush()

@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -54,6 +54,15 @@ class UserUpdateIn(BaseModel):
     is_active: bool | None = None
 
 
+class ChangePasswordIn(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=6)
+
+
+class ResetPasswordIn(BaseModel):
+    new_password: str = Field(min_length=6)
+
+
 @router.post("/login", response_model=LoginOut)
 def login(body: LoginIn, session: Session = Depends(get_session)) -> LoginOut:
     user = auth_service.authenticate(session, str(body.email), body.password)
@@ -65,6 +74,32 @@ def login(body: LoginIn, session: Session = Depends(get_session)) -> LoginOut:
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(current_user)) -> User:
     return user
+
+
+@router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
+def change_password(
+    body: ChangePasswordIn,
+    session: Session = Depends(get_session),
+    user: User = Depends(current_user),
+) -> None:
+    """Change your own password (verifies the current one)."""
+    if not auth_service.change_password(session, user, body.current_password, body.new_password):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="current password is incorrect")
+
+
+@router.post("/users/{user_id}/reset-password", status_code=status.HTTP_204_NO_CONTENT)
+def reset_password(
+    user_id: uuid.UUID,
+    body: ResetPasswordIn,
+    session: Session = Depends(get_session),
+    org_id: uuid.UUID = Depends(current_org_id),
+    _owner: User = Depends(_require_owner),
+) -> None:
+    """Owner resets a teammate's password (no current password needed)."""
+    target = session.scalar(select(User).where(User.id == user_id, User.org_id == org_id))
+    if target is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="user not found")
+    auth_service.set_password(session, target, body.new_password)
 
 
 @router.get("/users", response_model=list[UserOut])

@@ -12,7 +12,7 @@ from collections.abc import Iterator
 from datetime import date, timedelta
 
 import pytest
-from app.api.deps import current_org_id
+from app.api.deps import current_org_id, current_user
 from app.db import get_session
 from app.main import app
 from app.models import (
@@ -23,8 +23,9 @@ from app.models import (
     Supplier,
     SupplierCommercials,
     SupplierContact,
+    User,
 )
-from app.models.enums import MealPlan, Occupancy, SupplierKind
+from app.models.enums import MealPlan, Occupancy, SupplierKind, UserRole
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -75,11 +76,16 @@ def seeded(db_session: Session) -> Iterator[tuple[TestClient, dict[str, uuid.UUI
                         valid_from=TODAY - timedelta(days=400), valid_to=TODAY - timedelta(days=30)))
     db_session.flush()
 
+    owner = User(org_id=org.id, email="owner@qa.local", role=UserRole.OWNER, is_active=True)
+    db_session.add(owner)
+    db_session.flush()
+
     def _session() -> Iterator[Session]:
         yield db_session
 
     app.dependency_overrides[get_session] = _session
     app.dependency_overrides[current_org_id] = lambda: org.id
+    app.dependency_overrides[current_user] = lambda: owner
     ids = {"taj": taj.id, "zostel": zostel.id, "lake": lake.id, "jaipur": jaipur.id,
            "udaipur": udaipur.id}
     try:
@@ -163,9 +169,71 @@ def test_commercials_never_leak(seeded) -> None:
         assert "secret" not in blob
 
 
-def test_facets_expose_destinations_and_categories(seeded) -> None:
+def test_facets_expose_destinations_states_and_categories(seeded) -> None:
     client, _ = seeded
     facets = client.get("/api/v1/suppliers/facets").json()
     names = {d["name"]: d["supplier_count"] for d in facets["destinations"]}
     assert names == {"Jaipur": 2, "Udaipur": 1}
+    assert all(d["state"] == "Rajasthan" for d in facets["destinations"])
+    assert facets["states"] == ["Rajasthan"]
     assert facets["categories"] == ["Budget", "Luxury"]
+
+
+def test_filter_by_state(seeded) -> None:
+    client, _ = seeded
+    body = client.get("/api/v1/suppliers", params={"state": "Rajasthan"}).json()
+    assert body["total"] == 3  # all three are in Rajasthan
+    body = client.get("/api/v1/suppliers", params={"state": "Kerala"}).json()
+    assert body["total"] == 0
+
+
+def test_supplier_crud(seeded) -> None:
+    client, ids = seeded
+    # Create a supplier.
+    created = client.post("/api/v1/suppliers", json={
+        "kind": "hotel", "legal_name": "New Hotel Pvt Ltd", "display_name": "New Hotel",
+        "destination_id": str(ids["jaipur"]), "category": "Mid", "status": "prospect",
+    })
+    assert created.status_code == 201, created.text
+    sid = created.json()["id"]
+
+    # Edit it.
+    edited = client.patch(f"/api/v1/suppliers/{sid}", json={"status": "active", "category": "Luxury"})
+    assert edited.status_code == 200
+    assert edited.json()["status"] == "active"
+
+    # Add a room type, then a rate for it.
+    rt = client.post(f"/api/v1/suppliers/{sid}/room-types", json={"name": "Suite"})
+    assert rt.status_code == 201
+    rate = client.post(f"/api/v1/suppliers/{sid}/rates", json={
+        "room_type_id": rt.json()["id"], "meal_plan": "CP", "occupancy": "double",
+        "amount": "9000", "valid_from": str(TODAY), "valid_to": str(TODAY + timedelta(days=90)),
+    })
+    assert rate.status_code == 201, rate.text
+    assert client.get(f"/api/v1/suppliers/{sid}").json()["rate_count"] == 1
+
+    # Add a contact.
+    ct = client.post(f"/api/v1/suppliers/{sid}/contacts",
+                     json={"person_name": "Asha", "email": "asha@new.example", "is_primary": True})
+    assert ct.status_code == 201
+
+    # Delete the rate → freshness drops to none.
+    assert client.delete(f"/api/v1/suppliers/rates/{rate.json()['id']}").status_code == 204
+    assert client.get(f"/api/v1/suppliers/{sid}").json()["rate_count"] == 0
+
+    # Delete the supplier → it disappears from the browser.
+    assert client.delete(f"/api/v1/suppliers/{sid}").status_code == 204
+    assert client.get(f"/api/v1/suppliers/{sid}").status_code == 404
+
+
+def test_overlapping_rate_is_409(seeded) -> None:
+    client, ids = seeded
+    # taj already has a CP/double rate (on its Deluxe room) spanning today; another
+    # for the same room/plan/occupancy on overlapping dates conflicts (rates_no_overlap).
+    existing = client.get(f"/api/v1/suppliers/{ids['taj']}").json()["rates"][0]
+    resp = client.post(f"/api/v1/suppliers/{ids['taj']}/rates", json={
+        "room_type_id": existing["room_type_id"],
+        "meal_plan": "CP", "occupancy": "double", "amount": "8000",
+        "valid_from": str(TODAY), "valid_to": str(TODAY + timedelta(days=5)),
+    })
+    assert resp.status_code == 409

@@ -11,6 +11,7 @@ from fastapi import APIRouter
 from app.api.v1 import (
     auth,
     clients,
+    destinations,
     invoices,
     itineraries,
     markup_rules,
@@ -33,6 +34,7 @@ def ping() -> dict[str, str]:
 api_router.include_router(auth.router)
 api_router.include_router(review.router)
 api_router.include_router(suppliers.router)
+api_router.include_router(destinations.router)
 api_router.include_router(markup_rules.router)
 api_router.include_router(clients.router)
 api_router.include_router(projects.router)

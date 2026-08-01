@@ -98,6 +98,37 @@ def test_owner_manages_users(client: tuple[TestClient, str, str]) -> None:
                    headers=_auth(owner)).status_code == 400
 
 
+def test_change_own_password(client: tuple[TestClient, str, str]) -> None:
+    c, owner, _ = client
+    # Wrong current password is rejected.
+    assert c.post("/api/v1/auth/change-password",
+                  json={"current_password": "wrong", "new_password": "newpass1"},
+                  headers=_auth(owner)).status_code == 400
+    # Correct current password succeeds…
+    assert c.post("/api/v1/auth/change-password",
+                  json={"current_password": "pw", "new_password": "newpass1"},
+                  headers=_auth(owner)).status_code == 204
+    # …and the new password now works while the old one does not.
+    assert c.post("/api/v1/auth/login",
+                  json={"email": "owner@az.local", "password": "newpass1"}).status_code == 200
+    assert c.post("/api/v1/auth/login",
+                  json={"email": "owner@az.local", "password": "pw"}).status_code == 401
+
+
+def test_owner_resets_teammate_password(client: tuple[TestClient, str, str]) -> None:
+    c, owner, readonly = client
+    users = {u["email"]: u for u in c.get("/api/v1/auth/users", headers=_auth(owner)).json()}
+    ro_id = users["ro@az.local"]["id"]
+    # Readonly may not reset anyone.
+    assert c.post(f"/api/v1/auth/users/{ro_id}/reset-password",
+                  json={"new_password": "x123456"}, headers=_auth(readonly)).status_code == 403
+    # Owner resets the teammate, who can then log in with the new password.
+    assert c.post(f"/api/v1/auth/users/{ro_id}/reset-password",
+                  json={"new_password": "reset123"}, headers=_auth(owner)).status_code == 204
+    assert c.post("/api/v1/auth/login",
+                  json={"email": "ro@az.local", "password": "reset123"}).status_code == 200
+
+
 def test_login_flow(client: tuple[TestClient, str, str]) -> None:
     c, _, _ = client
     ok = c.post("/api/v1/auth/login", json={"email": "owner@az.local", "password": "pw"})

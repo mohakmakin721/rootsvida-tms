@@ -36,6 +36,7 @@ def _apply_filters(
     *,
     q: str | None,
     destination_id: uuid.UUID | None,
+    state: str | None,
     category: str | None,
     kind: str | None,
     status: str | None,
@@ -47,6 +48,8 @@ def _apply_filters(
         )
     if destination_id is not None:
         stmt = stmt.where(Supplier.destination_id == destination_id)
+    if state:
+        stmt = stmt.where(Destination.state == state)
     if category:
         stmt = stmt.where(Supplier.category == category)
     if kind:
@@ -87,6 +90,7 @@ def search(
     today: date,
     q: str | None = None,
     destination_id: uuid.UUID | None = None,
+    state: str | None = None,
     category: str | None = None,
     kind: str | None = None,
     status: str | None = None,
@@ -96,7 +100,8 @@ def search(
     """Return (page of supplier summaries, total matching count)."""
     filtered = _apply_filters(
         _base_query(org_id),
-        q=q, destination_id=destination_id, category=category, kind=kind, status=status,
+        q=q, destination_id=destination_id, state=state, category=category,
+        kind=kind, status=status,
     )
     total = session.scalar(
         select(func.count()).select_from(filtered.order_by(None).subquery())
@@ -132,6 +137,7 @@ def search(
 
 def _contact_dict(c: SupplierContact) -> dict[str, Any]:
     return {
+        "id": c.id,
         "person_name": c.person_name,
         "role": c.role,
         "phone_e164": c.phone_e164,
@@ -221,17 +227,29 @@ def get_detail(
 
 
 def facets(session: Session, org_id: uuid.UUID) -> dict[str, Any]:
-    """Filter options for the browser: destinations (with counts) and categories."""
+    """Filter options for the browser — cities (destinations, with state + counts),
+    the distinct states, and categories. All ordered ascending for tidy pickers."""
     dest_rows = session.execute(
-        select(Destination.id, Destination.name, func.count(Supplier.id))
+        select(Destination.id, Destination.name, Destination.state, func.count(Supplier.id))
         .join(Supplier, Supplier.destination_id == Destination.id)
         .where(
             Supplier.org_id == org_id,
             Supplier.deleted_at.is_(None),
             Destination.org_id == org_id,
         )
-        .group_by(Destination.id, Destination.name)
-        .order_by(func.count(Supplier.id).desc(), Destination.name)
+        .group_by(Destination.id, Destination.name, Destination.state)
+        .order_by(Destination.name)
+    ).all()
+    states = session.scalars(
+        select(Destination.state)
+        .join(Supplier, Supplier.destination_id == Destination.id)
+        .where(
+            Supplier.org_id == org_id,
+            Supplier.deleted_at.is_(None),
+            Destination.state.is_not(None),
+        )
+        .distinct()
+        .order_by(Destination.state)
     ).all()
     categories = session.scalars(
         select(Supplier.category)
@@ -245,8 +263,9 @@ def facets(session: Session, org_id: uuid.UUID) -> dict[str, Any]:
     ).all()
     return {
         "destinations": [
-            {"id": did, "name": name, "supplier_count": count}
-            for did, name, count in dest_rows
+            {"id": did, "name": name, "state": state, "supplier_count": count}
+            for did, name, state, count in dest_rows
         ],
+        "states": list(states),
         "categories": list(categories),
     }
