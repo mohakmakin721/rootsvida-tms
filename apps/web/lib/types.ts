@@ -335,6 +335,12 @@ export interface ComponentDraft {
   allocation: AllocationBasis;
   applies_to_segment_keys: string[] | null;
   applies_to_pax_class: PaxClass | null;
+  // Supplier/rate linkage (M3): when a rate is picked, its amount drives pricing
+  // and `override_amount` is left blank. rate_label/rate_amount are display-only.
+  supplier_id: string | null;
+  rate_id: string | null;
+  rate_label: string | null;
+  rate_amount: string | null;
 }
 
 export interface DayDraft {

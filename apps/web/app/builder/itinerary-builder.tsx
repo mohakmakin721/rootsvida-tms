@@ -21,6 +21,7 @@ import { Combobox } from "@/components/combobox";
 import { CURRENCIES, GST_STATES, inr } from "@/lib/constants";
 
 import { ClientIntake, type IntakeValue } from "./client-intake";
+import { SupplierRatePicker } from "./supplier-picker";
 import { btnDark, btnLight, Card, Empty, Field, inputCls, Req } from "./ui";
 
 const OCCUPANCIES: Occupancy[] = ["single", "double", "triple"];
@@ -174,6 +175,10 @@ export function ItineraryBuilder({
       allocation: "all_pax",
       applies_to_segment_keys: null,
       applies_to_pax_class: null,
+      supplier_id: null,
+      rate_id: null,
+      rate_label: null,
+      rate_amount: null,
     };
     setDays((prev) =>
       prev.map((d, i) => (i === dayIdx ? { ...d, components: [...d.components, comp] } : d)),
@@ -227,15 +232,26 @@ export function ItineraryBuilder({
       destination_id: d.destination_id || null,
       present_segment_keys: d.present_segment_keys,
       components: d.components
-        .filter((c) => c.override_amount !== "" && Number(c.override_amount) >= 0)
+        // Keep a component if it has a picked rate OR a valid manual amount.
+        .filter(
+          (c) =>
+            c.rate_id !== null ||
+            (c.override_amount !== "" && Number(c.override_amount) >= 0),
+        )
         .map((c) => {
+          const usesRate = c.rate_id !== null;
           const out: Record<string, unknown> = {
             kind: c.kind,
             description: c.description || null,
-            override_amount: c.override_amount,
-            override_reason: c.override_reason || "manual entry",
             allocation: c.kind === "stay" ? "all_pax" : c.allocation,
           };
+          if (usesRate) {
+            out.supplier_id = c.supplier_id;
+            out.rate_id = c.rate_id;
+          } else {
+            out.override_amount = c.override_amount;
+            out.override_reason = c.override_reason || "manual entry";
+          }
           if (c.kind === "stay") {
             out.applies_to_segment_keys = c.applies_to_segment_keys ?? [];
           } else if (c.allocation === "by_pax_class") {
@@ -731,6 +747,7 @@ function DaysSection({
                     key={cIdx}
                     comp={c}
                     segments={segments}
+                    destinationId={d.destination_id}
                     onUpdate={(patch) => onUpdateComponent(idx, cIdx, patch)}
                     onRemove={() => onRemoveComponent(idx, cIdx)}
                   />
@@ -750,11 +767,13 @@ function DaysSection({
 function ComponentRow({
   comp,
   segments,
+  destinationId,
   onUpdate,
   onRemove,
 }: {
   comp: ComponentDraft;
   segments: SegmentDraft[];
+  destinationId: string | null;
   onUpdate: (patch: Partial<ComponentDraft>) => void;
   onRemove: () => void;
 }) {
@@ -762,6 +781,7 @@ function ComponentRow({
   const needsSegments =
     isStay || comp.allocation === "per_segment" || comp.allocation === "per_pax_direct";
   const selected = comp.applies_to_segment_keys ?? [];
+  const hasRate = comp.rate_id !== null;
 
   return (
     <div className="rounded border border-neutral-200 bg-neutral-50 p-2">
@@ -781,14 +801,6 @@ function ComponentRow({
           value={comp.description}
           onChange={(e) => onUpdate({ description: e.target.value })}
         />
-        <input
-          type="number"
-          min={0}
-          className={`${inputCls} w-28`}
-          placeholder="Amount ₹"
-          value={comp.override_amount}
-          onChange={(e) => onUpdate({ override_amount: e.target.value })}
-        />
         {!isStay && (
           <select
             className={`${inputCls} w-48`}
@@ -803,6 +815,45 @@ function ComponentRow({
         <button onClick={onRemove} className="text-neutral-400 hover:text-red-600" aria-label="Remove cost">
           ✕
         </button>
+      </div>
+
+      {/* Supplier + rate: pick a supplier to auto-fill its rate, or add a new one. */}
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <SupplierRatePicker
+          kind={comp.kind}
+          destinationId={destinationId}
+          supplierId={comp.supplier_id}
+          rateId={comp.rate_id}
+          rateLabel={comp.rate_label}
+          onPick={(p) =>
+            onUpdate({
+              supplier_id: p.supplier_id,
+              rate_id: p.rate_id,
+              rate_label: p.rate_label,
+              rate_amount: p.rate_amount,
+              // A picked rate drives pricing; drop any manual amount.
+              override_amount: p.rate_id ? "" : comp.override_amount,
+            })
+          }
+        />
+        {hasRate ? (
+          <span className="text-xs text-neutral-500">
+            ₹{Number(comp.rate_amount ?? 0).toLocaleString("en-IN")} (from supplier rate)
+          </span>
+        ) : (
+          <span className="flex items-center gap-1 text-xs text-neutral-400">
+            or
+            <input
+              type="number"
+              min={0}
+              className={`${inputCls} w-28`}
+              placeholder="Amount ₹"
+              value={comp.override_amount}
+              onChange={(e) => onUpdate({ override_amount: e.target.value })}
+            />
+            manually
+          </span>
+        )}
       </div>
 
       {isStay && (

@@ -123,6 +123,34 @@ def test_preview_flags_below_floor_without_raising(api: tuple[TestClient, Sessio
     assert _d(body["margin_pct"]) == Decimal("12.52")
 
 
+def test_preview_resolves_amount_from_linked_rate(api: tuple[TestClient, Session]) -> None:
+    """M3: a component can carry a supplier + rate_id instead of a manual amount;
+    the engine prices it from the linked rate (the builder's auto-fill path)."""
+    client, _ = api
+    foreign, _indian = _markup_rules(client)
+    sup = client.post("/api/v1/suppliers", json={
+        "kind": "activity", "legal_name": "Amber Fort Tickets",
+        "display_name": "Amber Fort Tickets", "status": "active"}).json()
+    rate = client.post(f"/api/v1/suppliers/{sup['id']}/rates", json={
+        "meal_plan": "EP", "occupancy": "single", "amount": "5000",
+        "valid_from": "2026-01-01", "valid_to": "2027-01-01"}).json()
+    draft = {
+        "title": "Rate link", "start_date": "2026-07-18", "end_date": "2026-07-19",
+        "segments": [{"key": "fs", "label": "FS", "pax_class": "foreign",
+                      "occupancy": "single", "pax_count": 1, "markup_rule_id": foreign}],
+        "days": [{"day_number": 1, "date": "2026-07-18",
+                  "present_segment_keys": ["fs"],
+                  "components": [{"kind": "activity", "description": "Amber Fort",
+                                  "supplier_id": sup["id"], "rate_id": rate["id"],
+                                  "allocation": "all_pax"}]}],
+    }
+    resp = client.post("/api/v1/pricing/preview",
+                       json={"itinerary": draft, "buyer_state_code": "05"})
+    assert resp.status_code == 200, resp.text
+    # No override sent — the base cost equals the linked rate's amount.
+    assert _d(resp.json()["total_cost"]) == Decimal("5000.00")
+
+
 def test_preview_unknown_segment_key_is_422(api: tuple[TestClient, Session]) -> None:
     client, _ = api
     foreign, _indian = _markup_rules(client)
