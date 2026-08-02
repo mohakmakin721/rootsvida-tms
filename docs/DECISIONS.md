@@ -7,6 +7,28 @@ Format: **ID · Date · Status** — Decision, Context, Consequence.
 
 ---
 
+## D-0015 · 2026-08-02 · Accepted
+**Dynamic, DB-backed roles & permissions (roles are data, not an enum).**
+- **Context:** D-0014 shipped auth with five hardcoded roles (a PG enum) and
+  `require_role(...)` gates naming role constants at each endpoint. The owner needs
+  to create/remove role types and change what each role can do — impossible when
+  roles are a compiled enum and gates check role names.
+- **Decision (owner-approved 2026-08-02):** Roles become org-scoped **data**. A
+  fixed **permission catalog** (`app/security/permissions.py`: `users.manage`,
+  `suppliers.manage`, `markup.manage`, `quotes.issue`, `costing.view`,
+  `invoices.manage`) is the closed vocabulary the code enforces; a `roles` table
+  holds each role's granted permissions (`permissions text[]`). `users.role` is now
+  plain text (a role `key`), not the `user_role` enum (dropped in migration 0014).
+  Gates use `require_permission(...)`, resolving the caller's role → permission set
+  per request. The five built-ins are seeded per org and reproduce the old gates
+  exactly. **Invariants:** the owner role always holds every permission (lockout-
+  proof); system roles can't be deleted; a role in use can't be deleted; the last
+  user who can manage users can't be demoted/deactivated/deleted.
+- **Consequence:** The owner manages roles + a permission matrix in the UI. Adding a
+  genuinely new capability still means adding a permission key **and** a gate that
+  checks it — permissions can't be invented from the UI, only assigned. A per-request
+  DB lookup resolves permissions (owner short-circuits without a query).
+
 ## D-0014 · 2026-07-30 · Accepted
 **Self-hosted, dependency-free auth (no paid auth service).**
 - **Context:** Phase 3 needs real login + roles (D-0002 deferred it). The cost

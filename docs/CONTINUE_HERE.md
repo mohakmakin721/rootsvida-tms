@@ -5,13 +5,30 @@ This is a faithful development log (what was built, every commit, the commands, 
 decisions, the state) — not a verbatim message transcript. Read this top-to-bottom
 and you have everything to resume.
 
-**As of:** git HEAD `529553d` · 63 commits · **228 tests passing** · migrations
-through `0012` · Phase 1 ✅ · Phase 2 ✅ · Phase 3 ✅ · Phase 4 ✅ · **Security
-hardening ✅** (auth + role gates + web login + users admin). **Also done:**
-change-password (self + owner-reset); supplier/rate/room-type/contact CRUD in the
-browser (owner/ops_manager); state+city type-ahead filters; destinations search API
-+ inline "new city"; reusable Combobox type-ahead (builder day-destination too);
-sorted pickers. Next: Phase 5 (agentic itinerary drafter).
+**As of:** git HEAD `18561e7` · **236 tests passing** · migrations through `0014` ·
+Phase 1 ✅ · Phase 2 ✅ · Phase 3 ✅ · Phase 4 ✅ · **Security hardening ✅** (auth +
+web login + users admin). **Session 2026-08-02 (owner-requested batch):**
+- **M1** — dropped **SAARC** everywhere (builder UI, `PaxClass` app enum + TS type,
+  and the PG `pax_class` enum via migration 0013; now `{indian, foreign}`); added
+  **delete users** (`DELETE /auth/users/{id}`, soft delete, owner-only, guards
+  self + last-owner) with a UI Delete action.
+- **M2 — dynamic roles & permissions (D-0015)** — roles are now DB data, not an
+  enum. Permission catalog (`app/security/permissions.py`), `roles` table
+  (permissions `text[]`), `users.role` → text, `require_permission(...)` gates,
+  `/roles` + `/roles/permissions` CRUD, migration 0014. Owner-facing permission
+  matrix + create/delete custom roles on `/users`. `/auth/me`+login return the
+  caller's permissions; UI gates on permissions, not role names.
+- **M3 — builder supplier/rate auto-fill** — pick a hotel/meal/activity supplier
+  per component → its rate auto-fills and drives pricing; inline "+ New supplier" /
+  "+ Rate" when missing (`SupplierRatePicker`). Manual amount stays as fallback.
+- **M4 — dynamic costing workbook** — `costing_xlsx.py` rebuilt as a formula-driven
+  Excel model (Inputs / Cost build-up / Rates applied / Hotels & meal plans), yellow
+  editable cells, reproduces the engine's totals then recomputes on edit. Hotel +
+  meal-plan resolved via `component_meta()` from the M3 supplier/rate links.
+
+Next: Phase 5 (agentic itinerary drafter). **Prior work still current:**
+change-password (self + owner-reset); supplier/rate/room-type/contact CRUD;
+state+city type-ahead filters; destinations search + inline "new city"; sorted pickers.
 
 ---
 
