@@ -51,6 +51,7 @@ class SupplierKind(StrEnum):
     TRANSPORT = "transport"
     GUIDE = "guide"
     ACTIVITY = "activity"
+    MEAL = "meal"
     FACILITATOR = "facilitator"
     PHOTOGRAPHER = "photographer"
     PERMIT = "permit"

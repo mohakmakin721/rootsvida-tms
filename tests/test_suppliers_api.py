@@ -130,6 +130,14 @@ def test_filter_by_status_and_kind(seeded) -> None:
     body = client.get("/api/v1/suppliers", params={"kind": "homestay"}).json()
     assert [s["display_name"] for s in body["items"]] == ["Zostel Jaipur"]
 
+    # Several kinds, comma-separated (the builder passes e.g. hotel,homestay for a stay).
+    body = client.get("/api/v1/suppliers", params={"kind": "hotel,homestay"}).json()
+    assert {s["display_name"] for s in body["items"]} == {
+        "Taj Jai Mahal", "Zostel Jaipur", "Lake Palace"
+    }
+    body = client.get("/api/v1/suppliers", params={"kind": "transport,guide"}).json()
+    assert body["items"] == []
+
 
 def test_pagination(seeded) -> None:
     client, _ = seeded

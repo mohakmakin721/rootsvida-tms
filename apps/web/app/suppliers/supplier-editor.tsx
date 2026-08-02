@@ -6,7 +6,7 @@ import { Combobox } from "@/components/combobox";
 
 // Ascending, tidy pickers.
 export const SUPPLIER_KINDS = [
-  "activity", "facilitator", "guide", "homestay", "hotel", "misc", "permit",
+  "activity", "facilitator", "guide", "homestay", "hotel", "meal", "misc", "permit",
   "photographer", "transport",
 ];
 export const SUPPLIER_STATUSES = ["active", "blacklisted", "contacted", "prospect"];

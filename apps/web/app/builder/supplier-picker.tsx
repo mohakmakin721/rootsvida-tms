@@ -13,14 +13,27 @@ export interface RatePick {
   rate_amount: string | null;
 }
 
-// Which supplier kind to bias the search toward for each component kind. Meal and
-// misc stay unfiltered — a meal can come from a hotel, a facilitator, anything.
-const KIND_FILTER: Partial<Record<ComponentKind, string>> = {
+// Each component kind restricts the vendor search to matching vendor type(s) — so
+// a "guide" cost only suggests guide vendors, a "stay" only hotels/homestays, etc.
+const KIND_FILTER: Record<ComponentKind, string[]> = {
+  stay: ["hotel", "homestay"],
+  transport: ["transport"],
+  guide: ["guide"],
+  activity: ["activity"],
+  meal: ["meal"],
+  permit: ["permit"],
+  misc: ["misc", "facilitator", "photographer"],
+};
+
+// The default vendor kind to pre-select when adding a new vendor for this component.
+const NEW_VENDOR_KIND: Record<ComponentKind, string> = {
   stay: "hotel",
   transport: "transport",
   guide: "guide",
   activity: "activity",
+  meal: "meal",
   permit: "permit",
+  misc: "misc",
 };
 
 const MEAL_PLANS = ["EP", "CP", "MAP", "AP", "CPAI", "MAPAI", "APAI", "CAPAI"];
@@ -78,7 +91,7 @@ export function SupplierRatePicker({
       const params = new URLSearchParams({ limit: "15" });
       if (query.trim()) params.set("q", query.trim());
       const kf = KIND_FILTER[kind];
-      if (kf) params.set("kind", kf);
+      if (kf && kf.length) params.set("kind", kf.join(","));
       if (destinationId) params.set("destination_id", destinationId);
       try {
         const res = await fetch(`/api/v1/suppliers?${params.toString()}`);
@@ -265,7 +278,7 @@ function AddSupplierRate({
   onError: (msg: string | null) => void;
 }) {
   const [name, setName] = useState(existing?.display_name ?? "");
-  const [supplierKind, setSupplierKind] = useState(KIND_FILTER[kind] ?? "hotel");
+  const [supplierKind, setSupplierKind] = useState(NEW_VENDOR_KIND[kind] ?? "misc");
   const [mealPlan, setMealPlan] = useState(kind === "stay" ? "MAP" : "EP");
   const [occupancy, setOccupancy] = useState(kind === "stay" ? "double" : "single");
   const [amount, setAmount] = useState("");
@@ -359,7 +372,7 @@ function AddSupplierRate({
               onChange={(e) => setName(e.target.value)}
             />
             <select className={`${inputCls} text-xs`} value={supplierKind} onChange={(e) => setSupplierKind(e.target.value)}>
-              {["hotel", "homestay", "transport", "guide", "activity", "facilitator", "permit", "misc"].map((k) => (
+              {["hotel", "homestay", "transport", "guide", "activity", "meal", "facilitator", "permit", "misc"].map((k) => (
                 <option key={k} value={k}>{k}</option>
               ))}
             </select>

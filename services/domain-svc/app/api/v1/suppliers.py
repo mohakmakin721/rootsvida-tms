@@ -208,16 +208,19 @@ def list_suppliers(
     destination_id: uuid.UUID | None = None,
     state: str | None = None,
     category: str | None = None,
-    kind: str | None = None,
+    kind: str | None = Query(
+        default=None, description="One kind, or several comma-separated (e.g. hotel,homestay)"
+    ),
     status_filter: str | None = Query(default=None, alias="status"),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     session: Session = Depends(get_session),
     org_id: uuid.UUID = Depends(current_org_id),
 ) -> SupplierPage:
+    kinds = [k.strip() for k in kind.split(",") if k.strip()] if kind else None
     items, total = suppliers.search(
         session, org_id, today=date.today(), q=q, destination_id=destination_id,
-        state=state, category=category, kind=kind, status=status_filter,
+        state=state, category=category, kinds=kinds, status=status_filter,
         limit=limit, offset=offset,
     )
     return SupplierPage(items=items, total=total, limit=limit, offset=offset)

@@ -38,7 +38,7 @@ def _apply_filters(
     destination_id: uuid.UUID | None,
     state: str | None,
     category: str | None,
-    kind: str | None,
+    kinds: list[str] | None,
     status: str | None,
 ) -> Select[Any]:
     if q:
@@ -52,8 +52,8 @@ def _apply_filters(
         stmt = stmt.where(Destination.state == state)
     if category:
         stmt = stmt.where(Supplier.category == category)
-    if kind:
-        stmt = stmt.where(Supplier.kind == kind)
+    if kinds:
+        stmt = stmt.where(Supplier.kind.in_(kinds))
     if status:
         stmt = stmt.where(Supplier.status == status)
     return stmt
@@ -92,7 +92,7 @@ def search(
     destination_id: uuid.UUID | None = None,
     state: str | None = None,
     category: str | None = None,
-    kind: str | None = None,
+    kinds: list[str] | None = None,
     status: str | None = None,
     limit: int = 50,
     offset: int = 0,
@@ -101,7 +101,7 @@ def search(
     filtered = _apply_filters(
         _base_query(org_id),
         q=q, destination_id=destination_id, state=state, category=category,
-        kind=kind, status=status,
+        kinds=kinds, status=status,
     )
     total = session.scalar(
         select(func.count()).select_from(filtered.order_by(None).subquery())
