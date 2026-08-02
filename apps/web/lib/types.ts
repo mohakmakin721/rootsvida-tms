@@ -266,7 +266,7 @@ export interface Invoice {
 
 // --- Itinerary builder + live pricing preview (Phase 3 M7) ---
 
-export type PaxClass = "indian" | "foreign" | "saarc";
+export type PaxClass = "indian" | "foreign";
 export type Occupancy =
   | "single"
   | "double"

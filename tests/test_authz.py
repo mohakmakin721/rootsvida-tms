@@ -98,6 +98,30 @@ def test_owner_manages_users(client: tuple[TestClient, str, str]) -> None:
                    headers=_auth(owner)).status_code == 400
 
 
+def test_owner_deletes_teammate(client: tuple[TestClient, str, str]) -> None:
+    c, owner, readonly = client
+    users = {u["email"]: u for u in c.get("/api/v1/auth/users", headers=_auth(owner)).json()}
+    ro_id = users["ro@az.local"]["id"]
+
+    # A non-owner may not delete users.
+    assert c.delete(f"/api/v1/auth/users/{ro_id}", headers=_auth(readonly)).status_code == 403
+    # Owner deletes the teammate…
+    assert c.delete(f"/api/v1/auth/users/{ro_id}", headers=_auth(owner)).status_code == 204
+    # …who now drops off the list and can no longer log in.
+    remaining = {u["email"] for u in c.get("/api/v1/auth/users", headers=_auth(owner)).json()}
+    assert "ro@az.local" not in remaining
+    assert c.post("/api/v1/auth/login",
+                  json={"email": "ro@az.local", "password": "pw"}).status_code == 401
+
+
+def test_owner_cannot_delete_self_or_last_owner(client: tuple[TestClient, str, str]) -> None:
+    c, owner, _ = client
+    users = {u["email"]: u for u in c.get("/api/v1/auth/users", headers=_auth(owner)).json()}
+    owner_id = users["owner@az.local"]["id"]
+    # The sole owner is both "yourself" and "the last owner" — deletion is blocked.
+    assert c.delete(f"/api/v1/auth/users/{owner_id}", headers=_auth(owner)).status_code == 400
+
+
 def test_change_own_password(client: tuple[TestClient, str, str]) -> None:
     c, owner, _ = client
     # Wrong current password is rejected.

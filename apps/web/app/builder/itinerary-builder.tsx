@@ -24,7 +24,7 @@ import { ClientIntake, type IntakeValue } from "./client-intake";
 import { btnDark, btnLight, Card, Empty, Field, inputCls, Req } from "./ui";
 
 const OCCUPANCIES: Occupancy[] = ["single", "double", "triple"];
-const PAX_CLASSES: PaxClass[] = ["foreign", "indian", "saarc"];
+const PAX_CLASSES: PaxClass[] = ["foreign", "indian"];
 const KINDS: ComponentKind[] = [
   "stay",
   "transport",
@@ -443,7 +443,7 @@ const SEGMENT_INFO = (
   <>
     Split the party into groups that share a room type and a pricing rule.
     <br />• <b>Label</b> — a name like “Foreign Double”.
-    <br />• <b>Class</b> — foreign / indian / saarc; drives tax &amp; cost splits.
+    <br />• <b>Class</b> — foreign / indian; drives tax &amp; cost splits.
     <br />• <b>Occupancy</b> — single / double / triple (the room-share divisor).
     <br />• <b>Pax</b> — how many people in the group.
     <br />• <b>Markup</b> — which margin rule applies (manage rules with “Rules”).

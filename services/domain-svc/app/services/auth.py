@@ -16,7 +16,9 @@ from app.security.tokens import create_token
 
 def authenticate(session: Session, email: str, password: str) -> User | None:
     """Return the active user for these credentials, or None."""
-    user = session.scalar(select(User).where(User.email == email))
+    user = session.scalar(
+        select(User).where(User.email == email, User.deleted_at.is_(None))
+    )
     if user is None or not user.is_active:
         return None
     if not verify_password(password, user.password_hash):

@@ -93,11 +93,13 @@ class TransportBasis(StrEnum):
 
 
 class PaxClass(StrEnum):
-    """Traveller class — a first-class concept (Part 1 §1.3, Part 2 §4.2)."""
+    """Traveller class — a first-class concept (Part 1 §1.3, Part 2 §4.2).
+
+    Only Indian and Foreign are used (owner decision, 2026-08). The historical
+    SAARC value was dropped from the PG enum in migration 0013."""
 
     INDIAN = "indian"
     FOREIGN = "foreign"
-    SAARC = "saarc"
 
 
 class AllocationBasis(StrEnum):

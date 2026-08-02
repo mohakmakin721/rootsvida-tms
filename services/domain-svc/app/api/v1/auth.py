@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -109,7 +110,9 @@ def list_users(
     _owner: User = Depends(_require_owner),
 ) -> list[User]:
     return list(session.scalars(
-        select(User).where(User.org_id == org_id).order_by(User.email)
+        select(User)
+        .where(User.org_id == org_id, User.deleted_at.is_(None))
+        .order_by(User.email)
     ))
 
 
@@ -155,3 +158,44 @@ def update_user(
         user.is_active = body.is_active
     session.flush()
     return user
+
+
+@router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_user(
+    user_id: uuid.UUID,
+    session: Session = Depends(get_session),
+    org_id: uuid.UUID = Depends(current_org_id),
+    owner: User = Depends(_require_owner),
+) -> None:
+    """Remove a user (soft delete — the account can no longer log in and drops off
+    the list). Owner-only. You cannot delete yourself, and you cannot delete the
+    last remaining owner (that would lock the org out of user management)."""
+    user = session.scalar(
+        select(User).where(
+            User.id == user_id, User.org_id == org_id, User.deleted_at.is_(None)
+        )
+    )
+    if user is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="user not found")
+    if user.id == owner.id:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, detail="you cannot delete yourself"
+        )
+    if user.role is UserRole.OWNER:
+        other_owners = session.scalar(
+            select(func.count()).where(
+                User.org_id == org_id,
+                User.role == UserRole.OWNER,
+                User.is_active.is_(True),
+                User.deleted_at.is_(None),
+                User.id != user.id,
+            )
+        )
+        if not other_owners:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                detail="cannot delete the last owner",
+            )
+    user.is_active = False
+    user.deleted_at = datetime.now(UTC)
+    session.flush()

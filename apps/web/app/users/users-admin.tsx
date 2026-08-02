@@ -31,6 +31,19 @@ export function UsersAdmin({
   const [resetFor, setResetFor] = useState<string | null>(null);
   const [resetPw, setResetPw] = useState("");
   const [resetDone, setResetDone] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+
+  async function deleteUser(id: string) {
+    setError(null);
+    const res = await fetch(`/api/v1/auth/users/${id}`, { method: "DELETE" });
+    if (res.ok) {
+      setConfirmDelete(null);
+      setUsers((prev) => prev.filter((u) => u.id !== id));
+    } else {
+      const d = await res.json().catch(() => null);
+      setError(typeof d?.detail === "string" ? d.detail : `Could not delete user (${res.status}).`);
+    }
+  }
 
   async function resetPassword(id: string) {
     if (resetPw.length < 6) {
@@ -121,6 +134,7 @@ export function UsersAdmin({
               <th className="px-4 py-2 font-medium">Role</th>
               <th className="px-4 py-2 font-medium">Status</th>
               <th className="px-4 py-2 font-medium text-right">Password</th>
+              <th className="px-4 py-2 font-medium text-right">Delete</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-100">
@@ -194,6 +208,27 @@ export function UsersAdmin({
                         className="text-xs text-neutral-500 underline hover:text-neutral-800"
                       >
                         Reset password
+                      </button>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {isSelf ? (
+                      <span className="text-xs text-neutral-300" title="You can't delete yourself">—</span>
+                    ) : confirmDelete === u.id ? (
+                      <span className="inline-flex items-center gap-1">
+                        <button onClick={() => deleteUser(u.id)} className="rounded-md bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700">
+                          Delete
+                        </button>
+                        <button onClick={() => setConfirmDelete(null)} className="text-xs text-neutral-400 hover:text-neutral-700">
+                          Cancel
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmDelete(u.id)}
+                        className="text-xs text-neutral-400 underline hover:text-red-600"
+                      >
+                        Delete
                       </button>
                     )}
                   </td>
