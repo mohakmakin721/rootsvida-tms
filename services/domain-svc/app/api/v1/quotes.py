@@ -19,7 +19,7 @@ from app.models.enums import GstTreatment, PlaceOfSupply
 from app.security.permissions import COSTING_VIEW, QUOTES_ISSUE
 from app.services import proposal as proposal_service
 from app.services import quote as quote_service
-from app.services.costing_xlsx import render_costing_xlsx
+from app.services.costing_xlsx import component_meta, render_costing_xlsx
 from app.services.proposal_pdf import render_proposal_pdf
 from pricing import model as pm
 from pricing.engine import MarginBelowFloor
@@ -150,7 +150,8 @@ def quote_costing_xlsx(
     quote = _require(session, org_id, quote_id)
     project = session.get(Project, quote.project_id)
     itinerary = session.get(Itinerary, quote.itinerary_id)
-    xlsx = render_costing_xlsx(quote, project, itinerary)
+    meta = component_meta(session, quote.itinerary_id) if itinerary else {}
+    xlsx = render_costing_xlsx(quote, project, itinerary, meta)
     code = (project.code if project else "quote")
     filename = f"costing-{code}-v{quote.version}.xlsx"
     return Response(
