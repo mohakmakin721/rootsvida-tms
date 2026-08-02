@@ -89,6 +89,43 @@ export interface Rate {
   freshness: Freshness;
 }
 
+export interface TransportRate {
+  id: string;
+  vehicle_class: string;
+  vehicle_model: string | null;
+  seats: number | null;
+  basis: string;
+  amount: string;
+  includes_driver_da: boolean;
+  includes_fuel: boolean;
+  includes_tolls: boolean;
+  valid_from: string;
+  valid_to: string;
+  freshness: Freshness;
+}
+
+export interface GuideRate {
+  id: string;
+  languages: string[];
+  per_day: string | null;
+  per_half_day: string | null;
+  specialisation: string | null;
+  valid_from: string;
+  valid_to: string;
+  freshness: Freshness;
+}
+
+export interface ActivityRate {
+  id: string;
+  name: string;
+  pax_class: string;
+  price_per_pax: string;
+  child_price: string | null;
+  valid_from: string;
+  valid_to: string;
+  freshness: Freshness;
+}
+
 export interface SupplierDetail extends SupplierSummary {
   gstin: string | null;
   pan: string | null;
@@ -96,6 +133,9 @@ export interface SupplierDetail extends SupplierSummary {
   contacts: SupplierContact[];
   room_types: RoomType[];
   rates: Rate[];
+  transport_rates: TransportRate[];
+  guide_rates: GuideRate[];
+  activity_rates: ActivityRate[];
 }
 
 export interface DestinationFacet {

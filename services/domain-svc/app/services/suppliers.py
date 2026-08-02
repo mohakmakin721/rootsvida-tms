@@ -18,7 +18,16 @@ from typing import Any
 from sqlalchemy import Select, func, or_, select
 from sqlalchemy.orm import Session
 
-from app.models import Destination, Rate, RoomType, Supplier, SupplierContact
+from app.models import (
+    ActivityRate,
+    Destination,
+    GuideRate,
+    Rate,
+    RoomType,
+    Supplier,
+    SupplierContact,
+    TransportRate,
+)
 from app.services import freshness
 from app.services.freshness import Freshness
 
@@ -59,25 +68,36 @@ def _apply_filters(
     return stmt
 
 
+# Every rate-bearing table keyed by supplier, with its validity-window columns.
+# A vendor's rate count + freshness rolls up across whichever kind it uses.
+_RATE_SOURCES = (
+    (Rate, Rate.supplier_id, Rate.valid_from, Rate.valid_to),
+    (TransportRate, TransportRate.supplier_id, TransportRate.valid_from, TransportRate.valid_to),
+    (GuideRate, GuideRate.supplier_id, GuideRate.valid_from, GuideRate.valid_to),
+    (ActivityRate, ActivityRate.supplier_id, ActivityRate.valid_from, ActivityRate.valid_to),
+)
+
+
 def _freshness_by_supplier(
     session: Session, supplier_ids: list[uuid.UUID], today: date
 ) -> dict[uuid.UUID, tuple[int, Freshness]]:
-    """(rate_count, rolled-up freshness) for each supplier, in one query."""
+    """(rate_count, rolled-up freshness) for each supplier, across all rate types."""
     out: dict[uuid.UUID, tuple[int, Freshness]] = {
         sid: (0, Freshness.NONE) for sid in supplier_ids
     }
     if not supplier_ids:
         return out
-    rows = session.execute(
-        select(Rate.supplier_id, Rate.valid_from, Rate.valid_to).where(
-            Rate.supplier_id.in_(supplier_ids), Rate.deleted_at.is_(None)
-        )
-    )
     bands: dict[uuid.UUID, list[Freshness]] = {}
-    for supplier_id, valid_from, valid_to in rows:
-        bands.setdefault(supplier_id, []).append(
-            freshness.classify(valid_from, valid_to, today)
+    for model, sid_col, vf_col, vt_col in _RATE_SOURCES:
+        rows = session.execute(
+            select(sid_col, vf_col, vt_col).where(
+                sid_col.in_(supplier_ids), model.deleted_at.is_(None)
+            )
         )
+        for supplier_id, valid_from, valid_to in rows:
+            bands.setdefault(supplier_id, []).append(
+                freshness.classify(valid_from, valid_to, today)
+            )
     for supplier_id, band_list in bands.items():
         out[supplier_id] = (len(band_list), freshness.rollup(band_list))
     return out
@@ -168,6 +188,49 @@ def _rate_dict(r: Rate, today: date) -> dict[str, Any]:
     }
 
 
+def _transport_rate_dict(r: TransportRate, today: date) -> dict[str, Any]:
+    return {
+        "id": r.id,
+        "vehicle_class": r.vehicle_class,
+        "vehicle_model": r.vehicle_model,
+        "seats": r.seats,
+        "basis": r.basis.value,
+        "amount": str(r.amount),
+        "includes_driver_da": r.includes_driver_da,
+        "includes_fuel": r.includes_fuel,
+        "includes_tolls": r.includes_tolls,
+        "valid_from": r.valid_from.isoformat(),
+        "valid_to": r.valid_to.isoformat(),
+        "freshness": freshness.classify(r.valid_from, r.valid_to, today).value,
+    }
+
+
+def _guide_rate_dict(r: GuideRate, today: date) -> dict[str, Any]:
+    return {
+        "id": r.id,
+        "languages": list(r.languages),
+        "per_day": None if r.per_day is None else str(r.per_day),
+        "per_half_day": None if r.per_half_day is None else str(r.per_half_day),
+        "specialisation": r.specialisation,
+        "valid_from": r.valid_from.isoformat(),
+        "valid_to": r.valid_to.isoformat(),
+        "freshness": freshness.classify(r.valid_from, r.valid_to, today).value,
+    }
+
+
+def _activity_rate_dict(r: ActivityRate, today: date) -> dict[str, Any]:
+    return {
+        "id": r.id,
+        "name": r.name,
+        "pax_class": r.pax_class.value,
+        "price_per_pax": str(r.price_per_pax),
+        "child_price": None if r.child_price is None else str(r.child_price),
+        "valid_from": r.valid_from.isoformat(),
+        "valid_to": r.valid_to.isoformat(),
+        "freshness": freshness.classify(r.valid_from, r.valid_to, today).value,
+    }
+
+
 def get_detail(
     session: Session, org_id: uuid.UUID, supplier_id: uuid.UUID, *, today: date
 ) -> dict[str, Any] | None:
@@ -192,6 +255,28 @@ def get_detail(
         .where(Rate.supplier_id == supplier_id, Rate.deleted_at.is_(None))
         .order_by(Rate.valid_from.desc())
     ).all()
+    transport_rates = session.scalars(
+        select(TransportRate)
+        .where(TransportRate.supplier_id == supplier_id, TransportRate.deleted_at.is_(None))
+        .order_by(TransportRate.valid_from.desc())
+    ).all()
+    guide_rates = session.scalars(
+        select(GuideRate)
+        .where(GuideRate.supplier_id == supplier_id, GuideRate.deleted_at.is_(None))
+        .order_by(GuideRate.valid_from.desc())
+    ).all()
+    activity_rates = session.scalars(
+        select(ActivityRate)
+        .where(ActivityRate.supplier_id == supplier_id, ActivityRate.deleted_at.is_(None))
+        .order_by(ActivityRate.valid_from.desc())
+    ).all()
+
+    all_windows = (
+        [(r.valid_from, r.valid_to) for r in rates]
+        + [(r.valid_from, r.valid_to) for r in transport_rates]
+        + [(r.valid_from, r.valid_to) for r in guide_rates]
+        + [(r.valid_from, r.valid_to) for r in activity_rates]
+    )
 
     return {
         "id": supplier.id,
@@ -207,9 +292,9 @@ def get_detail(
         "status": supplier.status,
         "tags": list(supplier.tags),
         "notes": supplier.notes,
-        "rate_count": len(rates),
+        "rate_count": len(all_windows),
         "freshness": freshness.rollup(
-            freshness.classify(r.valid_from, r.valid_to, today) for r in rates
+            freshness.classify(vf, vt, today) for vf, vt in all_windows
         ).value,
         "contacts": [_contact_dict(c) for c in contacts],
         "room_types": [
@@ -223,6 +308,9 @@ def get_detail(
             for rt in room_types
         ],
         "rates": [_rate_dict(r, today) for r in rates],
+        "transport_rates": [_transport_rate_dict(r, today) for r in transport_rates],
+        "guide_rates": [_guide_rate_dict(r, today) for r in guide_rates],
+        "activity_rates": [_activity_rate_dict(r, today) for r in activity_rates],
     }
 
 

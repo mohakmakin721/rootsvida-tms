@@ -13,6 +13,22 @@ export const SUPPLIER_STATUSES = ["active", "blacklisted", "contacted", "prospec
 export const MEAL_PLANS = ["AP", "APAI", "CAPAI", "CP", "CPAI", "EP", "MAP", "MAPAI"];
 export const OCCUPANCIES = ["double", "single", "triple"];
 export const TAX_BASES = ["gross_of_tax", "net_of_tax", "plus_percent"];
+export const TRANSPORT_BASES = [
+  "per_day_8hr_80km", "per_km", "per_transfer", "per_extra_hour", "per_day_12hr", "fixed_route",
+];
+export const PAX_CLASSES = ["foreign", "indian"];
+
+// Vendor kinds that use hotel-style data (room types, meal-plan/occupancy rates).
+export const HOTEL_KINDS = ["hotel", "homestay"];
+
+function todayISO(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+function inAYearISO(): string {
+  const d = new Date();
+  d.setUTCFullYear(d.getUTCFullYear() + 1);
+  return d.toISOString().slice(0, 10);
+}
 
 export interface DestOption {
   id: string;
@@ -193,9 +209,11 @@ export function SupplierForm({
         <Field label="Category">
           <input className={inputCls} placeholder="Luxury, Mid…" value={v.category} onChange={(e) => set({ category: e.target.value })} />
         </Field>
-        <Field label="Property type">
-          <input className={inputCls} placeholder="Heritage, Resort…" value={v.property_type} onChange={(e) => set({ property_type: e.target.value })} />
-        </Field>
+        {HOTEL_KINDS.includes(v.kind) && (
+          <Field label="Property type">
+            <input className={inputCls} placeholder="Heritage, Resort…" value={v.property_type} onChange={(e) => set({ property_type: e.target.value })} />
+          </Field>
+        )}
         <Field label="GSTIN">
           <input className={inputCls} value={v.gstin} onChange={(e) => set({ gstin: e.target.value })} />
         </Field>
@@ -301,6 +319,125 @@ export function AddRoomTypeForm({ supplierId, onAdded }: { supplierId: string; o
     <div className="mt-2 flex items-center gap-1.5">
       <input className={`${inputCls} w-40`} placeholder="Room type (e.g. Suite)" value={name} onChange={(e) => setName(e.target.value)} />
       <button className={btnDark} onClick={add}>+ Room type</button>
+    </div>
+  );
+}
+
+/** Transport rate: vehicle + basis + amount (no room type / meal plan). */
+export function AddTransportRateForm({ supplierId, onAdded }: { supplierId: string; onAdded: () => void }) {
+  const [v, setV] = useState({
+    vehicle_class: "", vehicle_model: "", seats: "", basis: "per_day_8hr_80km",
+    amount: "", valid_from: todayISO(), valid_to: inAYearISO(),
+  });
+  const [error, setError] = useState<string | null>(null);
+  const set = (patch: Partial<typeof v>) => setV({ ...v, ...patch });
+  async function add() {
+    if (!v.vehicle_class.trim() || !v.amount) { setError("Vehicle class and amount are required."); return; }
+    setError(null);
+    const res = await fetch(`/api/v1/suppliers/${supplierId}/transport-rates`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        vehicle_class: v.vehicle_class.trim(), vehicle_model: v.vehicle_model.trim() || null,
+        seats: v.seats ? Number(v.seats) : null, basis: v.basis, amount: v.amount,
+        valid_from: v.valid_from, valid_to: v.valid_to,
+      }),
+    });
+    if (res.ok) { onAdded(); set({ amount: "", vehicle_class: "", vehicle_model: "", seats: "" }); }
+    else { const d = await res.json().catch(() => null); setError(typeof d?.detail === "string" ? d.detail : `Could not add rate (${res.status}).`); }
+  }
+  return (
+    <div className="mt-2 rounded-md border border-neutral-200 bg-neutral-50 p-2 text-xs">
+      {error && <p className="mb-1 text-red-600">{error}</p>}
+      <div className="flex flex-wrap items-end gap-1.5">
+        <input className={`${inputCls} w-28`} placeholder="Class (Sedan/SUV)" value={v.vehicle_class} onChange={(e) => set({ vehicle_class: e.target.value })} />
+        <input className={`${inputCls} w-28`} placeholder="Model (Innova…)" value={v.vehicle_model} onChange={(e) => set({ vehicle_model: e.target.value })} />
+        <input className={`${inputCls} w-16`} placeholder="Seats" value={v.seats} onChange={(e) => set({ seats: e.target.value })} />
+        <select className={`${inputCls} w-40`} value={v.basis} onChange={(e) => set({ basis: e.target.value })}>
+          {TRANSPORT_BASES.map((b) => <option key={b} value={b}>{b}</option>)}
+        </select>
+        <input className={`${inputCls} w-24`} placeholder="Amount" value={v.amount} onChange={(e) => set({ amount: e.target.value })} />
+        <input type="date" className={`${inputCls} w-36`} value={v.valid_from} onChange={(e) => set({ valid_from: e.target.value })} />
+        <input type="date" className={`${inputCls} w-36`} value={v.valid_to} onChange={(e) => set({ valid_to: e.target.value })} />
+        <button className={btnDark} onClick={add}>+ Rate</button>
+      </div>
+    </div>
+  );
+}
+
+/** Guide rate: languages + per-day / per-half-day (no room type / meal plan). */
+export function AddGuideRateForm({ supplierId, onAdded }: { supplierId: string; onAdded: () => void }) {
+  const [v, setV] = useState({
+    languages: "", per_day: "", per_half_day: "", specialisation: "",
+    valid_from: todayISO(), valid_to: inAYearISO(),
+  });
+  const [error, setError] = useState<string | null>(null);
+  const set = (patch: Partial<typeof v>) => setV({ ...v, ...patch });
+  async function add() {
+    if (!v.per_day && !v.per_half_day) { setError("Enter a per-day or per-half-day rate."); return; }
+    setError(null);
+    const res = await fetch(`/api/v1/suppliers/${supplierId}/guide-rates`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        languages: v.languages.split(",").map((s) => s.trim()).filter(Boolean),
+        per_day: v.per_day || null, per_half_day: v.per_half_day || null,
+        specialisation: v.specialisation.trim() || null,
+        valid_from: v.valid_from, valid_to: v.valid_to,
+      }),
+    });
+    if (res.ok) { onAdded(); set({ per_day: "", per_half_day: "", specialisation: "" }); }
+    else { const d = await res.json().catch(() => null); setError(typeof d?.detail === "string" ? d.detail : `Could not add rate (${res.status}).`); }
+  }
+  return (
+    <div className="mt-2 rounded-md border border-neutral-200 bg-neutral-50 p-2 text-xs">
+      {error && <p className="mb-1 text-red-600">{error}</p>}
+      <div className="flex flex-wrap items-end gap-1.5">
+        <input className={`${inputCls} w-40`} placeholder="Languages (comma-sep)" value={v.languages} onChange={(e) => set({ languages: e.target.value })} />
+        <input className={`${inputCls} w-24`} placeholder="Per day ₹" value={v.per_day} onChange={(e) => set({ per_day: e.target.value })} />
+        <input className={`${inputCls} w-24`} placeholder="Per half-day" value={v.per_half_day} onChange={(e) => set({ per_half_day: e.target.value })} />
+        <input className={`${inputCls} w-32`} placeholder="Specialisation" value={v.specialisation} onChange={(e) => set({ specialisation: e.target.value })} />
+        <input type="date" className={`${inputCls} w-36`} value={v.valid_from} onChange={(e) => set({ valid_from: e.target.value })} />
+        <input type="date" className={`${inputCls} w-36`} value={v.valid_to} onChange={(e) => set({ valid_to: e.target.value })} />
+        <button className={btnDark} onClick={add}>+ Rate</button>
+      </div>
+    </div>
+  );
+}
+
+/** Activity rate: per-pax by nationality (Indian vs foreign), optional child price. */
+export function AddActivityRateForm({ supplierId, onAdded }: { supplierId: string; onAdded: () => void }) {
+  const [v, setV] = useState({
+    name: "", pax_class: "foreign", price_per_pax: "", child_price: "",
+    valid_from: todayISO(), valid_to: inAYearISO(),
+  });
+  const [error, setError] = useState<string | null>(null);
+  const set = (patch: Partial<typeof v>) => setV({ ...v, ...patch });
+  async function add() {
+    if (!v.name.trim() || !v.price_per_pax) { setError("Name and price per pax are required."); return; }
+    setError(null);
+    const res = await fetch(`/api/v1/suppliers/${supplierId}/activity-rates`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: v.name.trim(), pax_class: v.pax_class, price_per_pax: v.price_per_pax,
+        child_price: v.child_price || null, valid_from: v.valid_from, valid_to: v.valid_to,
+      }),
+    });
+    if (res.ok) { onAdded(); set({ name: "", price_per_pax: "", child_price: "" }); }
+    else { const d = await res.json().catch(() => null); setError(typeof d?.detail === "string" ? d.detail : `Could not add rate (${res.status}).`); }
+  }
+  return (
+    <div className="mt-2 rounded-md border border-neutral-200 bg-neutral-50 p-2 text-xs">
+      {error && <p className="mb-1 text-red-600">{error}</p>}
+      <div className="flex flex-wrap items-end gap-1.5">
+        <input className={`${inputCls} w-40`} placeholder="Activity (Amber Fort…)" value={v.name} onChange={(e) => set({ name: e.target.value })} />
+        <select className={`${inputCls} w-24`} value={v.pax_class} onChange={(e) => set({ pax_class: e.target.value })}>
+          {PAX_CLASSES.map((p) => <option key={p} value={p}>{p}</option>)}
+        </select>
+        <input className={`${inputCls} w-24`} placeholder="Per pax ₹" value={v.price_per_pax} onChange={(e) => set({ price_per_pax: e.target.value })} />
+        <input className={`${inputCls} w-24`} placeholder="Child ₹" value={v.child_price} onChange={(e) => set({ child_price: e.target.value })} />
+        <input type="date" className={`${inputCls} w-36`} value={v.valid_from} onChange={(e) => set({ valid_from: e.target.value })} />
+        <input type="date" className={`${inputCls} w-36`} value={v.valid_to} onChange={(e) => set({ valid_to: e.target.value })} />
+        <button className={btnDark} onClick={add}>+ Rate</button>
+      </div>
     </div>
   );
 }

@@ -13,13 +13,17 @@ import type {
 } from "@/lib/types";
 
 import {
+  AddActivityRateForm,
   AddContactForm,
+  AddGuideRateForm,
   AddRateForm,
   AddRoomTypeForm,
+  AddTransportRateForm,
   btnDark,
   btnLight,
   type DestOption,
   emptySupplier,
+  HOTEL_KINDS,
   SupplierForm,
   type SupplierFormValues,
 } from "./supplier-editor";
@@ -56,7 +60,10 @@ interface Filters {
 const EMPTY: Filters = { q: "", state: "", destination_id: "", category: "", kind: "", status: "" };
 
 // Ascending, tidy pickers.
-const KINDS = ["activity", "guide", "homestay", "hotel", "transport"];
+const KINDS = [
+  "activity", "facilitator", "guide", "homestay", "hotel", "meal", "misc",
+  "permit", "photographer", "transport",
+];
 const STATUSES = ["active", "blacklisted", "contacted", "prospect"];
 
 function buildQuery(filters: Filters, offset: number): string {
@@ -513,53 +520,185 @@ function SupplierDetailPanel({
           )}
           {canEdit && <AddContactForm supplierId={supplierId} onAdded={reload} />}
 
-          <SectionTitle className="mt-4">Room types</SectionTitle>
-          {detail.room_types.length === 0 ? (
-            <Empty>No room types recorded.</Empty>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {detail.room_types.map((rt) => (
-                <span key={rt.id} className="inline-flex items-center gap-1 rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs text-neutral-700">
-                  {rt.name} · {rt.max_adults}A/{rt.max_children}C
-                  {canEdit && (
-                    <button className="text-neutral-400 hover:text-red-600" onClick={() => del(`room-types/${rt.id}`)} aria-label="Delete room type">✕</button>
-                  )}
-                </span>
-              ))}
-            </div>
+          {HOTEL_KINDS.includes(detail.kind) && (
+            <>
+              <SectionTitle className="mt-4">Room types</SectionTitle>
+              {detail.room_types.length === 0 ? (
+                <Empty>No room types recorded.</Empty>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {detail.room_types.map((rt) => (
+                    <span key={rt.id} className="inline-flex items-center gap-1 rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs text-neutral-700">
+                      {rt.name} · {rt.max_adults}A/{rt.max_children}C
+                      {canEdit && (
+                        <button className="text-neutral-400 hover:text-red-600" onClick={() => del(`room-types/${rt.id}`)} aria-label="Delete room type">✕</button>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {canEdit && <AddRoomTypeForm supplierId={supplierId} onAdded={reload} />}
+            </>
           )}
-          {canEdit && <AddRoomTypeForm supplierId={supplierId} onAdded={reload} />}
         </section>
 
         <section>
-          <SectionTitle>Rates</SectionTitle>
-          {detail.rates.length === 0 ? (
-            <Empty>No rates yet.</Empty>
-          ) : (
-            <div className="overflow-hidden rounded-md border border-neutral-200 bg-white">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-neutral-50 text-neutral-500">
-                  <tr>
-                    <th className="px-2 py-1.5 font-medium">Plan / Occ</th>
-                    <th className="px-2 py-1.5 font-medium text-right">Amount</th>
-                    <th className="px-2 py-1.5 font-medium">Validity</th>
-                    <th className="px-2 py-1.5 font-medium">Freshness</th>
-                    {canEdit && <th className="px-2 py-1.5" />}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-100">
-                  {detail.rates.map((r) => (
-                    <RateRow key={r.id} rate={r} canEdit={canEdit} onDelete={() => del(`rates/${r.id}`)} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {canEdit && <AddRateForm supplierId={supplierId} roomTypes={roomTypes} onAdded={reload} />}
+          <VendorRates
+            detail={detail}
+            supplierId={supplierId}
+            canEdit={canEdit}
+            roomTypes={roomTypes}
+            onDelete={del}
+            onReload={reload}
+          />
         </section>
       </div>
     </div>
   );
+}
+
+/** The rate section, shaped to the vendor kind: hotels show meal-plan/occupancy
+ *  rates + room types; transport/guide/activity each show their own columns. */
+function VendorRates({
+  detail,
+  supplierId,
+  canEdit,
+  roomTypes,
+  onDelete,
+  onReload,
+}: {
+  detail: SupplierDetail;
+  supplierId: string;
+  canEdit: boolean;
+  roomTypes: { id: string; name: string }[];
+  onDelete: (path: string) => void;
+  onReload: () => void;
+}) {
+  const kind = detail.kind;
+
+  if (kind === "transport") {
+    return (
+      <>
+        <SectionTitle>Transport rates</SectionTitle>
+        {detail.transport_rates.length === 0 ? (
+          <Empty>No transport rates yet.</Empty>
+        ) : (
+          <RateTable head={["Vehicle", "Basis", "Amount", "Validity", "Fresh", ""]}>
+            {detail.transport_rates.map((r) => (
+              <tr key={r.id}>
+                <td className="px-2 py-1.5 text-neutral-700">
+                  {r.vehicle_class}{r.vehicle_model ? ` · ${r.vehicle_model}` : ""}{r.seats ? ` · ${r.seats}p` : ""}
+                </td>
+                <td className="px-2 py-1.5 text-neutral-600">{r.basis}</td>
+                <td className="px-2 py-1.5 text-right text-neutral-800">₹{Number(r.amount).toLocaleString("en-IN")}</td>
+                <td className="px-2 py-1.5 text-neutral-500">{r.valid_from} → {r.valid_to}</td>
+                <td className="px-2 py-1.5"><Dot f={r.freshness} /></td>
+                {canEdit && <td className="px-2 py-1.5 text-right"><Del onClick={() => onDelete(`transport-rates/${r.id}`)} /></td>}
+              </tr>
+            ))}
+          </RateTable>
+        )}
+        {canEdit && <AddTransportRateForm supplierId={supplierId} onAdded={onReload} />}
+      </>
+    );
+  }
+
+  if (kind === "guide") {
+    return (
+      <>
+        <SectionTitle>Guide rates</SectionTitle>
+        {detail.guide_rates.length === 0 ? (
+          <Empty>No guide rates yet.</Empty>
+        ) : (
+          <RateTable head={["Languages", "Per day", "Half-day", "Validity", "Fresh", ""]}>
+            {detail.guide_rates.map((r) => (
+              <tr key={r.id}>
+                <td className="px-2 py-1.5 text-neutral-700">{r.languages.join(", ") || "—"}{r.specialisation ? ` (${r.specialisation})` : ""}</td>
+                <td className="px-2 py-1.5 text-right text-neutral-800">{r.per_day ? `₹${Number(r.per_day).toLocaleString("en-IN")}` : "—"}</td>
+                <td className="px-2 py-1.5 text-right text-neutral-600">{r.per_half_day ? `₹${Number(r.per_half_day).toLocaleString("en-IN")}` : "—"}</td>
+                <td className="px-2 py-1.5 text-neutral-500">{r.valid_from} → {r.valid_to}</td>
+                <td className="px-2 py-1.5"><Dot f={r.freshness} /></td>
+                {canEdit && <td className="px-2 py-1.5 text-right"><Del onClick={() => onDelete(`guide-rates/${r.id}`)} /></td>}
+              </tr>
+            ))}
+          </RateTable>
+        )}
+        {canEdit && <AddGuideRateForm supplierId={supplierId} onAdded={onReload} />}
+      </>
+    );
+  }
+
+  if (kind === "activity") {
+    return (
+      <>
+        <SectionTitle>Activity rates</SectionTitle>
+        {detail.activity_rates.length === 0 ? (
+          <Empty>No activity rates yet.</Empty>
+        ) : (
+          <RateTable head={["Activity", "Class", "Per pax", "Child", "Validity", "Fresh", ""]}>
+            {detail.activity_rates.map((r) => (
+              <tr key={r.id}>
+                <td className="px-2 py-1.5 text-neutral-700">{r.name}</td>
+                <td className="px-2 py-1.5 text-neutral-600 capitalize">{r.pax_class}</td>
+                <td className="px-2 py-1.5 text-right text-neutral-800">₹{Number(r.price_per_pax).toLocaleString("en-IN")}</td>
+                <td className="px-2 py-1.5 text-right text-neutral-600">{r.child_price ? `₹${Number(r.child_price).toLocaleString("en-IN")}` : "—"}</td>
+                <td className="px-2 py-1.5 text-neutral-500">{r.valid_from} → {r.valid_to}</td>
+                <td className="px-2 py-1.5"><Dot f={r.freshness} /></td>
+                {canEdit && <td className="px-2 py-1.5 text-right"><Del onClick={() => onDelete(`activity-rates/${r.id}`)} /></td>}
+              </tr>
+            ))}
+          </RateTable>
+        )}
+        {canEdit && <AddActivityRateForm supplierId={supplierId} onAdded={onReload} />}
+      </>
+    );
+  }
+
+  // hotel / homestay / meal / misc / facilitator / photographer / permit → meal-plan rates
+  const isHotel = HOTEL_KINDS.includes(kind);
+  return (
+    <>
+      <SectionTitle>Rates</SectionTitle>
+      {detail.rates.length === 0 ? (
+        <Empty>No rates yet.</Empty>
+      ) : (
+        <RateTable head={["Plan / Occ", "Amount", "Validity", "Freshness", ""]}>
+          {detail.rates.map((r) => (
+            <RateRow key={r.id} rate={r} canEdit={canEdit} onDelete={() => onDelete(`rates/${r.id}`)} />
+          ))}
+        </RateTable>
+      )}
+      {canEdit && (
+        <AddRateForm supplierId={supplierId} roomTypes={isHotel ? roomTypes : []} onAdded={onReload} />
+      )}
+    </>
+  );
+}
+
+function RateTable({ head, children }: { head: string[]; children: React.ReactNode }) {
+  return (
+    <div className="overflow-x-auto rounded-md border border-neutral-200 bg-white">
+      <table className="w-full text-left text-xs">
+        <thead className="bg-neutral-50 text-neutral-500">
+          <tr>
+            {head.map((h, i) => (
+              <th key={i} className={`px-2 py-1.5 font-medium ${h === "Amount" || h === "Per day" || h === "Per pax" ? "text-right" : ""}`}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-neutral-100">{children}</tbody>
+      </table>
+    </div>
+  );
+}
+
+function Dot({ f }: { f: Freshness }) {
+  const cls = FRESHNESS[f];
+  return <span className={`inline-block h-2 w-2 rounded-full ${cls.dot}`} title={cls.label} />;
+}
+
+function Del({ onClick }: { onClick: () => void }) {
+  return <button className="text-neutral-400 hover:text-red-600" onClick={onClick} aria-label="Delete rate">✕</button>;
 }
 
 function RateRow({ rate, canEdit, onDelete }: { rate: Rate; canEdit: boolean; onDelete: () => void }) {

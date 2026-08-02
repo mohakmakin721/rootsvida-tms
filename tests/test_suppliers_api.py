@@ -166,6 +166,48 @@ def test_detail_404_for_unknown(seeded) -> None:
     assert res.status_code == 404
 
 
+def test_type_specific_rates_per_vendor_kind(seeded) -> None:
+    """Transport / guide / activity vendors capture their own rate shape, and the
+    detail returns them with a freshness rollup across all rate types (#3)."""
+    client, _ = seeded
+    today = TODAY.isoformat()
+    later = (TODAY + timedelta(days=300)).isoformat()
+
+    # Transport vendor + a vehicle rate.
+    tr = client.post("/api/v1/suppliers", json={
+        "kind": "transport", "legal_name": "Rajasthan Cabs",
+        "display_name": "Rajasthan Cabs", "status": "active"}).json()
+    r = client.post(f"/api/v1/suppliers/{tr['id']}/transport-rates", json={
+        "vehicle_class": "SUV", "vehicle_model": "Innova Crysta", "seats": 6,
+        "basis": "per_day_8hr_80km", "amount": "4500",
+        "valid_from": today, "valid_to": later})
+    assert r.status_code == 201, r.text
+    detail = client.get(f"/api/v1/suppliers/{tr['id']}").json()
+    assert len(detail["transport_rates"]) == 1
+    assert detail["transport_rates"][0]["vehicle_class"] == "SUV"
+    assert detail["rate_count"] == 1 and detail["freshness"] == "fresh"
+
+    # Guide vendor + a guide rate.
+    gd = client.post("/api/v1/suppliers", json={
+        "kind": "guide", "legal_name": "Jai Guide", "display_name": "Jai Guide",
+        "status": "active"}).json()
+    assert client.post(f"/api/v1/suppliers/{gd['id']}/guide-rates", json={
+        "languages": ["English", "French"], "per_day": "3000",
+        "valid_from": today, "valid_to": later}).status_code == 201
+    gdetail = client.get(f"/api/v1/suppliers/{gd['id']}").json()
+    assert gdetail["guide_rates"][0]["languages"] == ["English", "French"]
+
+    # Activity vendor + a per-nationality ticket.
+    ac = client.post("/api/v1/suppliers", json={
+        "kind": "activity", "legal_name": "Amber Fort", "display_name": "Amber Fort",
+        "status": "active"}).json()
+    assert client.post(f"/api/v1/suppliers/{ac['id']}/activity-rates", json={
+        "name": "Amber Fort entry", "pax_class": "foreign", "price_per_pax": "600",
+        "valid_from": today, "valid_to": later}).status_code == 201
+    adetail = client.get(f"/api/v1/suppliers/{ac['id']}").json()
+    assert adetail["activity_rates"][0]["pax_class"] == "foreign"
+
+
 def test_commercials_never_leak(seeded) -> None:
     """D-0002 — commission/margin must not appear in any browser payload."""
     client, ids = seeded
