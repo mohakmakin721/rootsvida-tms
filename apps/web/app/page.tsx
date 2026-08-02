@@ -23,7 +23,7 @@ export default async function Home() {
       </div>
       <p className="mt-2 text-neutral-600">
         Internal travel-management workspace — projects, itineraries and the
-        supplier book.
+        vendor book.
       </p>
       <div className="mt-8 grid gap-4 sm:grid-cols-2">
         <div className="rounded-lg border border-neutral-200 p-5">
@@ -53,16 +53,16 @@ export default async function Home() {
           </Link>
         </div>
         <div className="rounded-lg border border-neutral-200 p-5">
-          <h2 className="font-medium">Supplier &amp; rate browser</h2>
+          <h2 className="font-medium">Vendor &amp; rate browser</h2>
           <p className="mt-1 text-sm text-neutral-500">
-            Search the supplier book, filter by destination and category, and open
-            any supplier to see contacts, room types and rate freshness.
+            Search the vendor book, filter by destination and category, and open
+            any vendor to see contacts, room types and rate freshness.
           </p>
           <Link
             href="/suppliers"
             className="mt-4 inline-block rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
           >
-            Browse suppliers →
+            Browse vendors →
           </Link>
         </div>
         <div className="rounded-lg border border-neutral-200 p-5">

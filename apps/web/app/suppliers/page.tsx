@@ -26,18 +26,18 @@ export default async function SuppliersPage() {
         <Link href="/" className="text-sm text-neutral-500 hover:text-neutral-800">
           ← RootsVida TMS
         </Link>
-        <h1 className="mt-1 text-2xl font-semibold">Supplier &amp; rate browser</h1>
+        <h1 className="mt-1 text-2xl font-semibold">Vendor &amp; rate browser</h1>
         <p className="mt-1 text-sm text-neutral-600">
-          Search the supplier book and open any supplier to see its contacts, room
+          Search the vendor book and open any vendor to see its contacts, room
           types and rates. The badge shows rate freshness at a glance — commission
           and margin are never shown here.
-          {canEdit && " You can add, edit and remove suppliers and rates here."}
+          {canEdit && " You can add, edit and remove vendors and rates here."}
         </p>
       </header>
 
       {error ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-6 text-sm text-amber-800">
-          <p className="font-medium">Could not load suppliers.</p>
+          <p className="font-medium">Could not load vendors.</p>
           <p className="mt-1">{error}</p>
           <p className="mt-2 text-amber-700">
             Is the domain service running on <code>:8000</code>? Start it with{" "}

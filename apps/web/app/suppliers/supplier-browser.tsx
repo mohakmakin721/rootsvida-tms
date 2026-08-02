@@ -147,7 +147,7 @@ export function SupplierBrowser({
     });
     if (!res.ok) {
       const d = await res.json().catch(() => null);
-      throw new Error(typeof d?.detail === "string" ? d.detail : `Could not create supplier (${res.status}).`);
+      throw new Error(typeof d?.detail === "string" ? d.detail : `Could not create vendor (${res.status}).`);
     }
     setAdding(false);
     reload();
@@ -163,7 +163,7 @@ export function SupplierBrowser({
         <div>
           <div className="flex justify-end">
             <button className={btnDark} onClick={() => setAdding((a) => !a)}>
-              {adding ? "Cancel" : "+ Add supplier"}
+              {adding ? "Cancel" : "+ Add vendor"}
             </button>
           </div>
           {adding && (
@@ -174,7 +174,7 @@ export function SupplierBrowser({
                 onDestinationsChanged={refreshDestinations}
                 onSubmit={createSupplier}
                 onCancel={() => setAdding(false)}
-                submitLabel="Create supplier"
+                submitLabel="Create vendor"
               />
             </div>
           )}
@@ -184,7 +184,7 @@ export function SupplierBrowser({
       <div className="space-y-3">
         <input
           className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
-          placeholder="Search supplier name…"
+          placeholder="Search vendor name…"
           value={filters.q}
           onChange={(e) => update({ q: e.target.value })}
         />
@@ -231,7 +231,7 @@ export function SupplierBrowser({
       <div className="flex items-center justify-between text-sm text-neutral-500">
         <span>
           {page.total === 0
-            ? "No suppliers match these filters."
+            ? "No vendors match these filters."
             : `Showing ${pageStart}–${pageEnd} of ${page.total}`}
           {loading && <span className="ml-2 text-neutral-400">loading…</span>}
         </span>
@@ -260,7 +260,7 @@ export function SupplierBrowser({
         <table className="w-full text-left text-sm">
           <thead className="bg-neutral-50 text-xs uppercase tracking-wide text-neutral-500">
             <tr>
-              <th className="px-4 py-2 font-medium">Supplier</th>
+              <th className="px-4 py-2 font-medium">Vendor</th>
               <th className="px-4 py-2 font-medium">Destination</th>
               <th className="px-4 py-2 font-medium">Category</th>
               <th className="px-4 py-2 font-medium">Status</th>
@@ -414,7 +414,7 @@ function SupplierDetailPanel({
     fetch(`/api/v1/suppliers/${supplierId}`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((d: SupplierDetail) => live && setDetail(d))
-      .catch(() => live && setError("Could not load supplier detail."));
+      .catch(() => live && setError("Could not load vendor detail."));
     return () => {
       live = false;
     };
@@ -435,7 +435,7 @@ function SupplierDetailPanel({
   }
 
   async function deleteSupplier() {
-    if (!confirm("Delete this supplier? It will be removed from the browser.")) return;
+    if (!confirm("Delete this vendor? It will be removed from the browser.")) return;
     await fetch(`/api/v1/suppliers/${supplierId}`, { method: "DELETE" });
     onChanged();
   }
@@ -456,7 +456,7 @@ function SupplierDetailPanel({
         <div className="flex items-center justify-between">
           <div className="flex gap-2">
             <button className={btnLight} onClick={() => setEditing((e) => !e)}>
-              {editing ? "Cancel" : "Edit supplier"}
+              {editing ? "Cancel" : "Edit vendor"}
             </button>
             <button className={`${btnLight} text-red-600`} onClick={deleteSupplier}>
               Delete

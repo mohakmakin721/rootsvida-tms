@@ -643,7 +643,7 @@ const DAYS_INFO = (
   <>
     One row per day of the trip.
     <br />• <b>Present</b> — tap a group to mark it away that day; a group that’s
-    away doesn’t pay for that day’s hotel.
+    away doesn’t pay for that day’s stay.
     <br />• <b>Add cost</b> — a stay (room rate), transport, guide, tickets, etc.
     <br />• <b>Allocation</b> — “all travellers” splits across everyone; “by pax
     class” within one class; “specific groups” across the ones you pick; “per-pax”
@@ -838,7 +838,7 @@ function ComponentRow({
         />
         {hasRate ? (
           <span className="text-xs text-neutral-500">
-            ₹{Number(comp.rate_amount ?? 0).toLocaleString("en-IN")} (from supplier rate)
+            ₹{Number(comp.rate_amount ?? 0).toLocaleString("en-IN")} (from vendor rate)
           </span>
         ) : (
           <span className="flex items-center gap-1 text-xs text-neutral-400">

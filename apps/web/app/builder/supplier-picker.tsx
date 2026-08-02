@@ -190,7 +190,7 @@ export function SupplierRatePicker({
             + Rate
           </button>
           <button type="button" onClick={clearAll} className="text-xs text-neutral-400 underline hover:text-neutral-700">
-            change supplier
+            change vendor
           </button>
         </div>
         {error && <p className="text-xs text-red-600">{error}</p>}
@@ -222,7 +222,7 @@ export function SupplierRatePicker({
       <div className="flex items-center gap-2">
         <input
           className={`${inputCls} w-56`}
-          placeholder="Find supplier / hotel…"
+          placeholder="Find vendor…"
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -231,14 +231,14 @@ export function SupplierRatePicker({
           onFocus={() => setOpen(true)}
         />
         <button type="button" onClick={() => setAdding(true)} className={btnLight}>
-          + New supplier
+          + New vendor
         </button>
       </div>
       {open && (
         <ul className="absolute z-30 mt-1 max-h-56 w-72 overflow-auto rounded-md border border-neutral-200 bg-white text-sm shadow-lg">
           {results.length === 0 ? (
             <li className="px-3 py-2 text-xs text-neutral-400">
-              No matches — use “+ New supplier”.
+              No matches — use “+ New vendor”.
             </li>
           ) : (
             results.map((s) => (
@@ -286,7 +286,7 @@ function AddSupplierRate({
 
   async function submit() {
     if (!existing && !name.trim()) {
-      onError("Give the new supplier a name.");
+      onError("Give the new vendor a name.");
       return;
     }
     if (amount === "" || Number(amount) < 0) {
@@ -314,8 +314,8 @@ function AddSupplierRate({
           const d = await sRes.json().catch(() => null);
           onError(
             sRes.status === 403
-              ? "You don't have permission to add suppliers."
-              : typeof d?.detail === "string" ? d.detail : `Could not add supplier (${sRes.status}).`,
+              ? "You don't have permission to add vendors."
+              : typeof d?.detail === "string" ? d.detail : `Could not add vendor (${sRes.status}).`,
           );
           return;
         }
@@ -360,14 +360,14 @@ function AddSupplierRate({
   return (
     <div className="rounded-md border border-neutral-300 bg-white p-2">
       <p className="mb-1 text-xs font-medium text-neutral-600">
-        {existing ? `Add a rate to ${existing.display_name}` : "Add a new supplier & its rate"}
+        {existing ? `Add a rate to ${existing.display_name}` : "Add a new vendor & its rate"}
       </p>
       <div className="flex flex-wrap items-center gap-1.5">
         {!existing && (
           <>
             <input
               className={`${inputCls} w-40 text-xs`}
-              placeholder="Supplier / hotel name"
+              placeholder="Vendor name"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
