@@ -13,7 +13,7 @@ export default async function SuppliersPage() {
   let facets: Facets = { destinations: [], states: [], categories: [] };
   let error: string | null = null;
   const me = await getMe();
-  const canEdit = me?.role === "owner" || me?.role === "ops_manager";
+  const canEdit = me?.permissions?.includes("suppliers.manage") ?? false;
   try {
     [page, facets] = await Promise.all([listSuppliers(50), getSupplierFacets()]);
   } catch (e) {

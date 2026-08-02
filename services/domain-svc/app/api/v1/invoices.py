@@ -11,18 +11,19 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.deps import current_org_id, require_role
+from app.api.deps import current_org_id, require_permission
 from app.config import get_settings
 from app.db import get_session
 from app.models import Invoice
-from app.models.enums import GstTreatment, UserRole
+from app.models.enums import GstTreatment
+from app.security.permissions import INVOICES_MANAGE
 from app.services import invoice as invoice_service
 from app.services.invoice_pdf import render_invoice_pdf
 
 router = APIRouter(tags=["invoices"])
 
-# Raising invoices / credit notes is a billing action.
-_billing = require_role(UserRole.OWNER, UserRole.OPS_MANAGER, UserRole.ACCOUNTS)
+# Raising invoices / credit notes is a billing action — gated on invoices.manage.
+_billing = require_permission(INVOICES_MANAGE)
 
 
 class GenerateInvoiceIn(BaseModel):

@@ -20,6 +20,7 @@ from app.db import get_session
 from app.models import Organization, TaxRule, User
 from app.models.enums import GstTreatment, PlaceOfSupply, UserRole
 from app.security.passwords import hash_password
+from app.services.roles import ensure_system_roles
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -90,13 +91,15 @@ def seed_org() -> None:
         session.flush()
 
         rules_changed = seed_tax_rules(session, org.id)
+        ensure_system_roles(session, org.id)
 
         owner = session.scalar(
             select(User).where(User.org_id == org.id, User.email == settings.rv_owner_email)
         )
         if owner is None:
             owner = User(org_id=org.id, email=settings.rv_owner_email, name="Owner",
-                         role=UserRole.OWNER, password_hash=hash_password(settings.rv_owner_password))
+                         role=UserRole.OWNER.value,
+                         password_hash=hash_password(settings.rv_owner_password))
             session.add(owner)
             owner_action = f"created ({settings.rv_owner_email})"
         else:

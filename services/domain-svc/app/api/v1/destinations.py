@@ -9,14 +9,14 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.deps import current_org_id, require_role
+from app.api.deps import current_org_id, require_permission
 from app.db import get_session
 from app.models import Destination
-from app.models.enums import UserRole
+from app.security.permissions import SUPPLIERS_MANAGE
 
 router = APIRouter(prefix="/destinations", tags=["destinations"])
 
-_manage = require_role(UserRole.OWNER, UserRole.OPS_MANAGER)
+_manage = require_permission(SUPPLIERS_MANAGE)
 
 
 class DestinationIn(BaseModel):

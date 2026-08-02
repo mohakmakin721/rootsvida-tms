@@ -5,7 +5,8 @@ success and rolls back on error. Authentication is required across the API:
 `current_user` resolves the caller from their Bearer token, and `current_org_id`
 derives the active tenant from that user — so every endpoint that depends on the
 org is authenticated by construction. Sensitive endpoints additionally gate on
-`require_role(...)`. (D-0002 / D-0014.)
+`require_permission(...)`, which resolves the caller's role → permission set
+(D-0002 / D-0014 / D-0015 dynamic roles).
 """
 
 from __future__ import annotations
@@ -20,8 +21,8 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.db import get_session
 from app.models import User
-from app.models.enums import UserRole
 from app.security.tokens import TokenError, verify_token
+from app.services import roles as roles_service
 
 _bearer = HTTPBearer(auto_error=False)
 
@@ -51,14 +52,22 @@ def current_org_id(user: User = Depends(current_user)) -> uuid.UUID:
     return user.org_id
 
 
-def require_role(*roles: UserRole) -> Callable[[User], User]:
-    """Dependency factory: allow only users whose role is in `roles`."""
-    allowed = {r.value for r in roles}
+def require_permission(*permissions: str) -> Callable[..., User]:
+    """Dependency factory: allow only callers whose role grants every listed
+    permission. Roles are resolved per request from the DB (D-0015); the owner
+    role always holds every permission."""
+    needed = set(permissions)
 
-    def _dep(user: User = Depends(current_user)) -> User:
-        if user.role.value not in allowed:
-            raise HTTPException(status.HTTP_403_FORBIDDEN,
-                                detail=f"requires role in {sorted(allowed)}")
+    def _dep(
+        user: User = Depends(current_user),
+        session: Session = Depends(get_session),
+    ) -> User:
+        granted = roles_service.permissions_for_role(session, user.org_id, user.role)
+        if not needed <= granted:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                detail=f"requires permission {sorted(needed)}",
+            )
         return user
 
     return _dep

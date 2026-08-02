@@ -13,9 +13,9 @@ export default async function Home() {
       <div className="flex items-start justify-between gap-4">
         <h1 className="text-2xl font-semibold">RootsVida TMS</h1>
         <div className="flex items-center gap-3">
-          {me?.role === "owner" && (
+          {me?.permissions?.includes("users.manage") && (
             <Link href="/users" className="text-sm text-neutral-500 underline hover:text-neutral-800">
-              Users
+              Users &amp; roles
             </Link>
           )}
           {me && <UserBadge email={me.email} role={me.role} />}

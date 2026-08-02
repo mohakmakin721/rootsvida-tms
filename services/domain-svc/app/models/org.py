@@ -15,7 +15,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, SoftDeleteMixin, TimestampMixin, UUIDPrimaryKeyMixin
 from app.models.enums import UserRole
-from app.models.types import pg_enum
 
 
 class Organization(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -42,10 +41,12 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin, Base):
     )
     email: Mapped[str] = mapped_column(CITEXT, nullable=False)
     name: Mapped[str | None] = mapped_column(Text)
-    role: Mapped[UserRole] = mapped_column(
-        pg_enum(UserRole, "user_role"),
+    # A role's `key` (see app.models.role.Role). Roles are dynamic/DB-backed
+    # (D-0015); this is plain text, not the old fixed `user_role` enum.
+    role: Mapped[str] = mapped_column(
+        Text,
         nullable=False,
-        default=UserRole.READONLY,
+        default=UserRole.READONLY.value,
         server_default=UserRole.READONLY.value,
     )
     is_active: Mapped[bool] = mapped_column(

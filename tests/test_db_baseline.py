@@ -39,9 +39,10 @@ def test_user_role_enum_persists_lowercase_value(db_session: Session) -> None:
     ).scalar_one()
     assert stored == "owner"
 
-    # And the ORM round-trips it back to the enum member.
+    # Roles are dynamic/text now (D-0015); the column round-trips as the role key
+    # (StrEnum compares equal to its value).
     db_session.expire(user)
-    assert user.role is UserRole.OWNER
+    assert user.role == UserRole.OWNER
 
 
 def test_citext_email_is_case_insensitive(db_session: Session) -> None:

@@ -10,15 +10,16 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.api.deps import current_org_id, require_role
+from app.api.deps import current_org_id, require_permission
 from app.db import get_session
 from app.models import MarkupRule, TravellerSegment
-from app.models.enums import MarkupBasis, UserRole
+from app.models.enums import MarkupBasis
+from app.security.permissions import MARKUP_MANAGE
 
 router = APIRouter(prefix="/markup-rules", tags=["markup"])
 
-# Markup policy is commercial — only owner/ops-manager may change it.
-_manage = require_role(UserRole.OWNER, UserRole.OPS_MANAGER)
+# Markup policy is commercial — gated on markup.manage.
+_manage = require_permission(MARKUP_MANAGE)
 
 
 class MarkupRuleIn(BaseModel):

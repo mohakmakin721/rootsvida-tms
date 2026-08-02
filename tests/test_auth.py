@@ -64,9 +64,12 @@ def test_token_expiry() -> None:
 
 @pytest.fixture
 def api(db_session: Session) -> Iterator[tuple[TestClient, Organization]]:
+    from app.services.roles import ensure_system_roles
+
     org = Organization(name="Auth QA", slug=f"auth-{uuid.uuid4().hex[:8]}")
     db_session.add(org)
     db_session.flush()
+    ensure_system_roles(db_session, org.id)
 
     def _session() -> Iterator[Session]:
         yield db_session

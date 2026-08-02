@@ -38,12 +38,13 @@ def create_user(
     *,
     email: str,
     password: str,
-    role: UserRole = UserRole.READONLY,
+    role: str = UserRole.READONLY.value,
     name: str | None = None,
 ) -> User:
-    """Create a user with a hashed password (org-scoped, unique email per org)."""
+    """Create a user with a hashed password (org-scoped, unique email per org).
+    `role` is a role key (see app.models.role.Role); callers validate it exists."""
     user = User(
-        org_id=org_id, email=email, name=name, role=role,
+        org_id=org_id, email=email, name=name, role=str(role),
         password_hash=hash_password(password),
     )
     session.add(user)

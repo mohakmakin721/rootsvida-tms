@@ -27,6 +27,8 @@ def client(db_session: Session) -> Iterator[tuple[TestClient, str, str]]:
     db_session.add(org)
     db_session.flush()
     seed_tax_rules(db_session, org.id)
+    from app.services.roles import ensure_system_roles
+    ensure_system_roles(db_session, org.id)
     owner = create_user(db_session, org.id, email="owner@az.local", password="pw",
                         role=UserRole.OWNER)
     readonly = create_user(db_session, org.id, email="ro@az.local", password="pw",

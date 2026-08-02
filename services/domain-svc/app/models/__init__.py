@@ -29,6 +29,7 @@ from app.models.provenance import RawImportRow, SourceDocument
 from app.models.quote import Quote, QuoteLine
 from app.models.rate import Rate
 from app.models.review import ReviewItem
+from app.models.role import Role
 from app.models.supplier import (
     RoomType,
     Supplier,
@@ -64,6 +65,7 @@ __all__ = [
     "RawImportRow",
     "Rate",
     "ReviewItem",
+    "Role",
     "RoomType",
     "SourceDocument",
     "Supplier",

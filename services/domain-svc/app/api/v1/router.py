@@ -19,6 +19,7 @@ from app.api.v1 import (
     projects,
     quotes,
     review,
+    roles,
     suppliers,
 )
 
@@ -32,6 +33,7 @@ def ping() -> dict[str, str]:
 
 
 api_router.include_router(auth.router)
+api_router.include_router(roles.router)
 api_router.include_router(review.router)
 api_router.include_router(suppliers.router)
 api_router.include_router(destinations.router)

@@ -119,6 +119,26 @@ export interface CurrentUser {
   name: string | null;
   role: string;
   is_active: boolean;
+  permissions?: string[];
+}
+
+// --- Roles & permissions (D-0015) ---
+
+export interface Permission {
+  key: string;
+  label: string;
+  description: string;
+  group: string;
+}
+
+export interface Role {
+  id: string;
+  key: string;
+  label: string;
+  description: string | null;
+  is_system: boolean;
+  permissions: string[];
+  user_count: number;
 }
 
 // --- Clients & projects (Phase 3 M8) ---

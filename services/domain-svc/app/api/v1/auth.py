@@ -7,19 +7,39 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.api.deps import current_org_id, current_user, require_role
+from app.api.deps import current_org_id, current_user, require_permission
 from app.db import get_session
-from app.models import User
+from app.models import Role, User
 from app.models.enums import UserRole
+from app.security.permissions import USERS_MANAGE
 from app.services import auth as auth_service
+from app.services import roles as roles_service
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-_require_owner = require_role(UserRole.OWNER)
+_require_user_admin = require_permission(USERS_MANAGE)
+
+
+def _require_role_key(session: Session, org_id: uuid.UUID, key: str) -> None:
+    """422 if `key` is not an existing role in this org."""
+    exists = session.scalar(select(Role.id).where(Role.org_id == org_id, Role.key == key))
+    if exists is None:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"unknown role {key!r}"
+        )
+
+
+def _user_out(session: Session, user: User) -> UserOut:
+    """UserOut with the caller's resolved permissions filled in (for /me + login)."""
+    perms = sorted(roles_service.permissions_for_role(session, user.org_id, user.role))
+    return UserOut(
+        id=user.id, email=user.email, name=user.name, role=user.role,
+        is_active=user.is_active, permissions=perms,
+    )
 
 
 class LoginIn(BaseModel):
@@ -33,8 +53,9 @@ class UserOut(BaseModel):
     id: uuid.UUID
     email: str
     name: str | None
-    role: UserRole
+    role: str
     is_active: bool
+    permissions: list[str] = []
 
 
 class LoginOut(BaseModel):
@@ -47,11 +68,11 @@ class UserCreateIn(BaseModel):
     email: str
     password: str
     name: str | None = None
-    role: UserRole = UserRole.READONLY
+    role: str = UserRole.READONLY.value
 
 
 class UserUpdateIn(BaseModel):
-    role: UserRole | None = None
+    role: str | None = None
     is_active: bool | None = None
 
 
@@ -69,12 +90,15 @@ def login(body: LoginIn, session: Session = Depends(get_session)) -> LoginOut:
     user = auth_service.authenticate(session, str(body.email), body.password)
     if user is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="invalid credentials")
-    return LoginOut(token=auth_service.token_for(user), user=UserOut.model_validate(user))
+    return LoginOut(token=auth_service.token_for(user), user=_user_out(session, user))
 
 
 @router.get("/me", response_model=UserOut)
-def me(user: User = Depends(current_user)) -> User:
-    return user
+def me(
+    session: Session = Depends(get_session),
+    user: User = Depends(current_user),
+) -> UserOut:
+    return _user_out(session, user)
 
 
 @router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
@@ -94,10 +118,12 @@ def reset_password(
     body: ResetPasswordIn,
     session: Session = Depends(get_session),
     org_id: uuid.UUID = Depends(current_org_id),
-    _owner: User = Depends(_require_owner),
+    _admin: User = Depends(_require_user_admin),
 ) -> None:
-    """Owner resets a teammate's password (no current password needed)."""
-    target = session.scalar(select(User).where(User.id == user_id, User.org_id == org_id))
+    """Reset a teammate's password (no current password needed). Needs users.manage."""
+    target = session.scalar(select(User).where(
+        User.id == user_id, User.org_id == org_id, User.deleted_at.is_(None)
+    ))
     if target is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="user not found")
     auth_service.set_password(session, target, body.new_password)
@@ -107,7 +133,7 @@ def reset_password(
 def list_users(
     session: Session = Depends(get_session),
     org_id: uuid.UUID = Depends(current_org_id),
-    _owner: User = Depends(_require_owner),
+    _admin: User = Depends(_require_user_admin),
 ) -> list[User]:
     return list(session.scalars(
         select(User)
@@ -121,8 +147,9 @@ def create_user(
     body: UserCreateIn,
     session: Session = Depends(get_session),
     org_id: uuid.UUID = Depends(current_org_id),
-    _owner: User = Depends(_require_owner),
+    _admin: User = Depends(_require_user_admin),
 ) -> User:
+    _require_role_key(session, org_id, body.role)
     try:
         return auth_service.create_user(
             session, org_id, email=str(body.email), password=body.password,
@@ -138,19 +165,35 @@ def update_user(
     body: UserUpdateIn,
     session: Session = Depends(get_session),
     org_id: uuid.UUID = Depends(current_org_id),
-    owner: User = Depends(_require_owner),
+    caller: User = Depends(_require_user_admin),
 ) -> User:
-    """Change a user's role or activation. Owner-only. You cannot demote or
-    deactivate yourself — that guards against locking the org out of ownership."""
-    user = session.scalar(select(User).where(User.id == user_id, User.org_id == org_id))
+    """Change a user's role or activation (needs users.manage). You cannot change
+    your own role or deactivate yourself, and you cannot demote/deactivate the last
+    user who can manage users — both guard against locking the org out."""
+    user = session.scalar(select(User).where(
+        User.id == user_id, User.org_id == org_id, User.deleted_at.is_(None)
+    ))
     if user is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="user not found")
-    if user.id == owner.id and (
-        (body.role is not None and body.role is not UserRole.OWNER) or body.is_active is False
+    if body.role is not None:
+        _require_role_key(session, org_id, body.role)
+    if user.id == caller.id and (
+        (body.role is not None and body.role != user.role) or body.is_active is False
     ):
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
             detail="you cannot change your own role or deactivate yourself",
+        )
+    admin_keys = roles_service.admin_role_keys(session, org_id)
+    losing_admin = user.role in admin_keys and (
+        (body.role is not None and body.role not in admin_keys) or body.is_active is False
+    )
+    if losing_admin and roles_service.remaining_admin_count(
+        session, org_id, excluding_user_id=user.id
+    ) == 0:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail="this is the last user who can manage users",
         )
     if body.role is not None:
         user.role = body.role
@@ -165,11 +208,11 @@ def delete_user(
     user_id: uuid.UUID,
     session: Session = Depends(get_session),
     org_id: uuid.UUID = Depends(current_org_id),
-    owner: User = Depends(_require_owner),
+    caller: User = Depends(_require_user_admin),
 ) -> None:
     """Remove a user (soft delete — the account can no longer log in and drops off
-    the list). Owner-only. You cannot delete yourself, and you cannot delete the
-    last remaining owner (that would lock the org out of user management)."""
+    the list). Needs users.manage. You cannot delete yourself, and you cannot delete
+    the last user who can manage users (that would lock the org out)."""
     user = session.scalar(
         select(User).where(
             User.id == user_id, User.org_id == org_id, User.deleted_at.is_(None)
@@ -177,25 +220,17 @@ def delete_user(
     )
     if user is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="user not found")
-    if user.id == owner.id:
+    if user.id == caller.id:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST, detail="you cannot delete yourself"
         )
-    if user.role is UserRole.OWNER:
-        other_owners = session.scalar(
-            select(func.count()).where(
-                User.org_id == org_id,
-                User.role == UserRole.OWNER,
-                User.is_active.is_(True),
-                User.deleted_at.is_(None),
-                User.id != user.id,
-            )
+    if user.role in roles_service.admin_role_keys(session, org_id) and (
+        roles_service.remaining_admin_count(session, org_id, excluding_user_id=user.id) == 0
+    ):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail="cannot delete the last user who can manage users",
         )
-        if not other_owners:
-            raise HTTPException(
-                status.HTTP_400_BAD_REQUEST,
-                detail="cannot delete the last owner",
-            )
     user.is_active = False
     user.deleted_at = datetime.now(UTC)
     session.flush()

@@ -19,16 +19,17 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.api.deps import current_org_id, require_role
+from app.api.deps import current_org_id, require_permission
 from app.db import get_session
 from app.models import Rate, RoomType, Supplier, SupplierContact
-from app.models.enums import MealPlan, Occupancy, SupplierKind, TaxBasis, UserRole
+from app.models.enums import MealPlan, Occupancy, SupplierKind, TaxBasis
+from app.security.permissions import SUPPLIERS_MANAGE
 from app.services import suppliers
 
 router = APIRouter(prefix="/suppliers", tags=["suppliers"])
 
-# Managing the supplier book is operational data — owner/ops_manager only.
-_manage = require_role(UserRole.OWNER, UserRole.OPS_MANAGER)
+# Managing the supplier book is operational data — gated on suppliers.manage.
+_manage = require_permission(SUPPLIERS_MANAGE)
 
 
 # --------------------------------------------------------------------------- #

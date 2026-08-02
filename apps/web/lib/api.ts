@@ -7,10 +7,12 @@ import type {
   ItineraryBrief,
   MarkupRule,
   Milestone,
+  Permission,
   Project,
   Quote,
   ReviewItem,
   ReviewStatus,
+  Role,
   SupplierPage,
 } from "@/lib/types";
 
@@ -44,9 +46,19 @@ export async function getMe(): Promise<CurrentUser | null> {
   }
 }
 
-/** All users in the org (owner-only — throws 403 otherwise). */
+/** All users in the org (needs users.manage — throws 403 otherwise). */
 export function listUsers(): Promise<CurrentUser[]> {
   return getJSON<CurrentUser[]>("/auth/users");
+}
+
+/** The org's roles with their permissions + user counts (needs users.manage). */
+export function listRoles(): Promise<Role[]> {
+  return getJSON<Role[]>("/roles");
+}
+
+/** The fixed permission catalog — the toggles the roles UI offers. */
+export function listPermissions(): Promise<Permission[]> {
+  return getJSON<Permission[]>("/roles/permissions");
 }
 
 /** Fetch review-queue items by status (server-side, never cached). */

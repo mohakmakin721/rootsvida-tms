@@ -11,7 +11,9 @@ from enum import Enum, StrEnum
 
 
 class UserRole(StrEnum):
-    """Access roles (Part 2 §8.1). Commission/margin visible to owner/ops_manager."""
+    """The built-in role keys. Roles are now dynamic/DB-backed (D-0015) — the owner
+    can add custom roles — but these five are always seeded (app.services.roles) and
+    named here so defaults, seeding and self-lockout guards can reference them."""
 
     OWNER = "owner"
     OPS_MANAGER = "ops_manager"
@@ -211,7 +213,6 @@ class GstTreatment(StrEnum):
 # Names used for the PostgreSQL ENUM types. Referenced by models and migrations
 # so the Python enum and the DB type never drift.
 PG_ENUM_NAMES: dict[type[Enum], str] = {
-    UserRole: "user_role",
     ClientType: "client_type",
     SupplierKind: "supplier_kind",
     MealPlan: "meal_plan",
