@@ -5,7 +5,7 @@ This is a faithful development log (what was built, every commit, the commands, 
 decisions, the state) — not a verbatim message transcript. Read this top-to-bottom
 and you have everything to resume.
 
-**As of:** git HEAD `18561e7` · **236 tests passing** · migrations through `0014` ·
+**As of:** git HEAD `13512fd` · **237 tests passing** · migrations through `0015` ·
 Phase 1 ✅ · Phase 2 ✅ · Phase 3 ✅ · Phase 4 ✅ · **Security hardening ✅** (auth +
 web login + users admin). **Session 2026-08-02 (owner-requested batch):**
 - **M1** — dropped **SAARC** everywhere (builder UI, `PaxClass` app enum + TS type,
@@ -25,6 +25,16 @@ web login + users admin). **Session 2026-08-02 (owner-requested batch):**
   Excel model (Inputs / Cost build-up / Rates applied / Hotels & meal plans), yellow
   editable cells, reproduces the engine's totals then recomputes on edit. Hotel +
   meal-plan resolved via `component_meta()` from the M3 supplier/rate links.
+- **M5 — strict per-kind vendor autocomplete** in the builder (stay→hotel/homestay,
+  guide→guide, transport→transport, meal→meal, …); added a `meal` supplier_kind
+  (migration 0015); suppliers search `kind` accepts several comma-separated kinds.
+- **M6 — UI rename Supplier → "Vendor"** (labels/copy/buttons/placeholders only; DB
+  tables, API routes and code identifiers stay `supplier`).
+- **M7 — type-aware vendors** — vendor detail returns transport/guide/activity rates
+  (existing per-type tables), rate_count + freshness roll up across all types; new
+  create/delete endpoints + typed schemas per kind; the browser's rate section and
+  add-forms are shaped to the vendor kind (room types + Property type only for
+  hotel/homestay). No migration (tables already existed).
 
 Next: Phase 5 (agentic itinerary drafter). **Prior work still current:**
 change-password (self + owner-reset); supplier/rate/room-type/contact CRUD;

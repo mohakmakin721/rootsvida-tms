@@ -40,7 +40,7 @@ docker ps --filter name=rootsvida
 ```powershell
 cd E:\Rootsvida\db
 python -m alembic upgrade head
-python -m alembic current   # should print 0014_dynamic_roles (head)
+python -m alembic current   # should print 0015_supplier_kind_meal (head)
 ```
 
 ## 3. Seed the org, tax rules, roles and owner user (idempotent — safe to re-run)
@@ -144,6 +144,32 @@ On **`/users`**, below the users table:
    markup %, GST %, the FX rate, or a room rate and every total recalculates. The
    "Engine (authoritative)" block shows the frozen figures to cross-check against.
 
+### 7.6 Builder — vendor suggestions are filtered by cost kind
+- Builder → **+ Add cost**. Change the cost **kind** and use "Find vendor…": a
+  **guide** cost only suggests guide vendors, a **stay** only hotels/homestays, a
+  **transport** only transport vendors, a **meal** only meal vendors, etc. "+ New
+  vendor" defaults to the matching kind.
+
+### 7.7 "Vendor" wording
+- The old "Supplier & rate browser" is now **Vendor & rate browser** everywhere —
+  home card & nav ("Browse vendors"), the browser title, "+ Add vendor" / "Edit
+  vendor", the search placeholder, and the builder's "Find vendor…" picker. (The
+  URL stays `/suppliers` and the API is unchanged — internal only.)
+
+### 7.8 Type-aware vendors (add/edit adapts to the kind)
+On **Vendor & rate browser** (`/suppliers`), open or add a vendor:
+- **Kind = hotel / homestay** → Room types + meal-plan/occupancy rates; a
+  "Property type" field. (As before.)
+- **Kind = transport** → a **Transport rates** section: vehicle class/model/seats,
+  pricing **basis** (per-day-8hr-80km, per-km, …), amount. No room types/meal plan.
+- **Kind = guide** → a **Guide rates** section: languages, per-day / per-half-day,
+  specialisation.
+- **Kind = activity** → an **Activity rates** section: per-pax price **by
+  nationality** (Indian vs foreign) + optional child price.
+- **Kind = meal / misc / permit / …** → a simple amount rate.
+Add a rate in each and confirm it lists; the freshness badge + rate count on the
+list row roll up across whatever rate type the vendor uses.
+
 ---
 
 ## 8. Quick API smoke test (optional, without the browser)
@@ -166,7 +192,11 @@ and try any endpoint.
 
 ## 9. Stopping / restarting
 
-- Stop a server: **Ctrl+C** in its terminal (Terminal A / B).
+- Stop a server: **Ctrl+C** in its terminal (Terminal A / B). Prefer Ctrl+C over
+  force-killing the PID — with `--reload`, killing only the parent can orphan the
+  worker that still holds port 8000. If `:8000` seems stuck after a hard kill, find
+  the orphan: `Get-CimInstance Win32_Process -Filter "Name='python.exe'"` → stop the
+  `multiprocessing.spawn` child, then restart.
 - Stop the database: `docker compose stop` (keeps data) or `docker compose down`
   (removes containers; data persists in the named volume).
 - After pulling new backend code that adds a migration: re-run §2 (and §3 if seed
