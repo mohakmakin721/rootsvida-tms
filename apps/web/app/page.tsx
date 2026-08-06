@@ -17,6 +17,9 @@ export default async function Home() {
           <h1 className="text-2xl font-semibold">RootsVida TMS</h1>
         </div>
         <div className="flex items-center gap-3">
+          <Link href="/activity" className="text-sm text-neutral-500 underline hover:text-neutral-800">
+            Activity log
+          </Link>
           {me?.permissions?.includes("users.manage") && (
             <Link href="/users" className="text-sm text-neutral-500 underline hover:text-neutral-800">
               Users &amp; roles

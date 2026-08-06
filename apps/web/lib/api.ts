@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 
 import type {
+  ActivityRow,
   CurrentUser,
   Facets,
   Invoice,
@@ -84,6 +85,11 @@ export function listMarkupRules(): Promise<MarkupRule[]> {
 /** All projects, newest first (the projects & quotes index). */
 export function listProjects(): Promise<Project[]> {
   return getJSON<Project[]>("/projects");
+}
+
+/** Org-wide milestone/activity log (date-ordered) for the activity screen. */
+export function listActivity(): Promise<ActivityRow[]> {
+  return getJSON<ActivityRow[]>("/projects/activity-log");
 }
 
 export function getProject(id: string): Promise<Project> {

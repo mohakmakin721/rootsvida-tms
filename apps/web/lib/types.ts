@@ -205,6 +205,20 @@ export interface ProjectBrief {
   created_at: string;
 }
 
+export interface ActivityRow {
+  id: string;
+  project_id: string;
+  project_code: string;
+  client_name: string;
+  project_status: string;
+  kind: string;
+  title: string;
+  due_date: string | null;
+  amount: string | null;
+  done: boolean;
+  notes: string | null;
+}
+
 export interface ClientDetail extends ClientSummary {
   projects: ProjectBrief[];
 }

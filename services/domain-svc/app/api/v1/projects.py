@@ -14,7 +14,7 @@ from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict, model_validator
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import current_org_id
@@ -161,6 +161,61 @@ def list_projects(
     if client_id is not None:
         stmt = stmt.where(Project.client_id == client_id)
     return list(session.scalars(stmt.order_by(Project.created_at.desc())))
+
+
+class ActivityRow(BaseModel):
+    id: uuid.UUID
+    project_id: uuid.UUID
+    project_code: str
+    client_name: str
+    project_status: str
+    kind: str
+    title: str
+    due_date: date | None
+    amount: Decimal | None
+    done: bool
+    notes: str | None
+
+
+# Declared before "/{project_id}" so "/projects/activity-log" isn't read as an id.
+@router.get("/activity-log", response_model=list[ActivityRow])
+def activity_log(
+    q: str | None = Query(default=None, description="Search project code or client name"),
+    kind: str | None = Query(default=None),
+    status_filter: str | None = Query(default=None, alias="status"),
+    done: bool | None = Query(default=None),
+    session: Session = Depends(get_session),
+    org_id: uuid.UUID = Depends(current_org_id),
+) -> list[ActivityRow]:
+    """Org-wide, date-ordered log of every milestone across projects — powers the
+    activity screen. Filter by text (code/client), milestone kind, project status,
+    and done/pending."""
+    stmt = (
+        select(ProjectMilestone, Project.code, Project.client_name, Project.status)
+        .join(Project, Project.id == ProjectMilestone.project_id)
+        .where(ProjectMilestone.org_id == org_id)
+    )
+    if q:
+        like = f"%{q.strip()}%"
+        stmt = stmt.where(or_(Project.code.ilike(like), Project.client_name.ilike(like)))
+    if kind:
+        stmt = stmt.where(ProjectMilestone.kind == kind)
+    if status_filter:
+        stmt = stmt.where(Project.status == status_filter)
+    if done is not None:
+        stmt = stmt.where(ProjectMilestone.done.is_(done))
+    stmt = stmt.order_by(
+        ProjectMilestone.due_date.is_(None), ProjectMilestone.due_date.desc(),
+        ProjectMilestone.created_at.desc(),
+    )
+    return [
+        ActivityRow(
+            id=m.id, project_id=m.project_id, project_code=code, client_name=name,
+            project_status=pstatus, kind=m.kind, title=m.title, due_date=m.due_date,
+            amount=m.amount, done=m.done, notes=m.notes,
+        )
+        for m, code, name, pstatus in session.execute(stmt).all()
+    ]
 
 
 @router.get("/{project_id}", response_model=ProjectOut)

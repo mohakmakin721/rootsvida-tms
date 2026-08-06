@@ -80,3 +80,30 @@ def test_milestone_crud_and_ordering(api: TestClient) -> None:
 
 def test_milestone_404(api: TestClient) -> None:
     assert api.patch(f"/api/v1/projects/milestones/{uuid.uuid4()}", json={"done": True}).status_code == 404
+
+
+def test_activity_log_aggregates_and_filters(api: TestClient) -> None:
+    p1 = api.post("/api/v1/projects", json={"code": "AC-1", "client_name": "Acme"}).json()["id"]
+    p2 = api.post("/api/v1/projects", json={"code": "AC-2", "client_name": "Beta"}).json()["id"]
+    api.post(f"/api/v1/projects/{p1}/milestones",
+             json={"kind": "payment", "title": "Deposit", "due_date": "2026-09-01",
+                   "amount": "10000", "done": True})
+    api.post(f"/api/v1/projects/{p1}/milestones",
+             json={"kind": "payment_deadline", "title": "Balance", "due_date": "2026-10-01"})
+    api.post(f"/api/v1/projects/{p2}/milestones",
+             json={"kind": "note", "title": "Called client"})
+
+    # Org-wide, enriched with project code + client name.
+    all_rows = api.get("/api/v1/projects/activity-log").json()
+    assert len(all_rows) == 3
+    assert {r["project_code"] for r in all_rows} == {"AC-1", "AC-2"}
+    assert all("client_name" in r and "project_status" in r for r in all_rows)
+
+    # Filter by client name.
+    beta = api.get("/api/v1/projects/activity-log", params={"q": "Beta"}).json()
+    assert [r["project_code"] for r in beta] == ["AC-2"]
+
+    # Filter by kind + pending.
+    due = api.get("/api/v1/projects/activity-log",
+                  params={"kind": "payment_deadline", "done": "false"}).json()
+    assert [r["title"] for r in due] == ["Balance"]
