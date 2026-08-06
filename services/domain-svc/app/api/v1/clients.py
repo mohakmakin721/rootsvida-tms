@@ -12,7 +12,7 @@ import uuid
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -27,11 +27,18 @@ router = APIRouter(prefix="/clients", tags=["clients"])
 class ClientIn(BaseModel):
     name: str
     client_type: ClientType = ClientType.INDIVIDUAL
+    corporate_name: str | None = None
     country: str | None = None
     email: str | None = None
     phone: str | None = None
     referral: str | None = None
     notes: str | None = None
+
+    @model_validator(mode="after")
+    def _corporate_needs_name(self) -> ClientIn:
+        if self.client_type is ClientType.CORPORATE and not (self.corporate_name or "").strip():
+            raise ValueError("Corporate name is required for a corporate client.")
+        return self
 
 
 class ClientSummary(BaseModel):
@@ -40,6 +47,7 @@ class ClientSummary(BaseModel):
     id: uuid.UUID
     name: str
     client_type: ClientType
+    corporate_name: str | None = None
     country: str | None
     email: str | None
     phone: str | None

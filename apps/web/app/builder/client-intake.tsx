@@ -11,6 +11,7 @@ const CLIENT_TYPES: ClientType[] = ["individual", "family", "group", "corporate"
 export interface NewClient {
   name: string;
   client_type: ClientType;
+  corporate_name: string;
   country: string;
   email: string;
   phone: string;
@@ -37,7 +38,8 @@ function addDays(iso: string, n: number): string {
 }
 
 const emptyNew: NewClient = {
-  name: "", client_type: "individual", country: "", email: "", phone: "", referral: "", notes: "",
+  name: "", client_type: "individual", corporate_name: "", country: "", email: "",
+  phone: "", referral: "", notes: "",
 };
 
 export function ClientIntake({ onChange }: { onChange: (v: IntakeValue) => void }) {
@@ -127,7 +129,10 @@ export function ClientIntake({ onChange }: { onChange: (v: IntakeValue) => void 
 
   // ---- report the resolved value up ----
   useEffect(() => {
-    const clientOk = mode === "search" ? !!selected : newClient.name.trim().length > 0;
+    const corporateOk =
+      newClient.client_type !== "corporate" || newClient.corporate_name.trim().length > 0;
+    const clientOk =
+      mode === "search" ? !!selected : newClient.name.trim().length > 0 && corporateOk;
     const projectOk =
       projectMode === "existing" ? !!selectedProjectId : code.trim().length > 0 && codeStatus !== "taken";
     const ready =
@@ -182,7 +187,7 @@ export function ClientIntake({ onChange }: { onChange: (v: IntakeValue) => void 
             <div className="flex items-start justify-between rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2">
               <div>
                 <div className="text-sm font-medium text-neutral-900">
-                  {selected.name}
+                  {selected.corporate_name ? `${selected.corporate_name} — ${selected.name}` : selected.name}
                   <span className="ml-2 rounded bg-white px-1.5 py-0.5 text-xs capitalize text-neutral-500">
                     {selected.client_type}
                   </span>
@@ -306,6 +311,20 @@ function NewClientForm({ value, onChange }: { value: NewClient; onChange: (v: Ne
           ))}
         </select>
       </Field>
+      {value.client_type === "corporate" && (
+        <label className="flex flex-col gap-1 sm:col-span-2">
+          <span className="text-xs text-neutral-500">
+            Company name<span className="text-red-500"> *</span>
+            <span className="ml-1 text-neutral-400">(the “Client name” above is the contact person)</span>
+          </span>
+          <input
+            className={`${inputCls} ${value.corporate_name.trim() ? "" : "border-red-300"}`}
+            placeholder="e.g. Acme Travel Pvt Ltd"
+            value={value.corporate_name}
+            onChange={(e) => set({ corporate_name: e.target.value })}
+          />
+        </label>
+      )}
       <Field label="Home country (ISO-2)">
         <input className={inputCls} placeholder="IN, US, CL…" value={value.country} onChange={(e) => set({ country: e.target.value })} />
       </Field>

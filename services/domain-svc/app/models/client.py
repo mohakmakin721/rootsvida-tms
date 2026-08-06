@@ -34,6 +34,9 @@ class Client(
         nullable=False,
         server_default=ClientType.INDIVIDUAL.value,
     )
+    # The organisation name, for corporate clients (the `name` is then the contact
+    # person). NULL for individuals/families/groups.
+    corporate_name: Mapped[str | None] = mapped_column(Text)
     country: Mapped[str | None] = mapped_column(Text)  # ISO-2, e.g. 'US'
     email: Mapped[str | None] = mapped_column(CITEXT)
     phone: Mapped[str | None] = mapped_column(Text)

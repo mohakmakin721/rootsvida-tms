@@ -189,6 +189,7 @@ export interface ClientSummary {
   id: string;
   name: string;
   client_type: ClientType;
+  corporate_name: string | null;
   country: string | null;
   email: string | null;
   phone: string | null;

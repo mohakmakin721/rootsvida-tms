@@ -48,8 +48,22 @@ def test_create_and_search_client(api: TestClient) -> None:
     assert found[0]["email"] == "ana@example.com"
 
 
+def test_corporate_client_requires_company_name(api: TestClient) -> None:
+    # A corporate client without a company name is rejected with a clear message.
+    bad = api.post("/api/v1/clients", json={"name": "Priya", "client_type": "corporate"})
+    assert bad.status_code == 422
+    assert "corporate name" in bad.text.lower()
+    # With the company name it saves, and the name round-trips.
+    ok = api.post("/api/v1/clients", json={
+        "name": "Priya", "client_type": "corporate", "corporate_name": "Acme Pvt Ltd"})
+    assert ok.status_code == 201
+    assert ok.json()["corporate_name"] == "Acme Pvt Ltd"
+
+
 def test_project_against_existing_client_and_continuity(api: TestClient) -> None:
-    client = api.post("/api/v1/clients", json={"name": "Globus Tours", "client_type": "corporate"}).json()
+    client = api.post("/api/v1/clients", json={
+        "name": "Globus Tours", "client_type": "corporate",
+        "corporate_name": "Globus Tours Pvt Ltd"}).json()
 
     p1 = api.post("/api/v1/projects", json={"code": "GT-01", "client_id": client["id"]})
     assert p1.status_code == 201, p1.text
