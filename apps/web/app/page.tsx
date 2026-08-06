@@ -11,7 +11,11 @@ export default async function Home() {
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
       <div className="flex items-start justify-between gap-4">
-        <h1 className="text-2xl font-semibold">RootsVida TMS</h1>
+        <div className="flex items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/roots-logo.png" alt="RootsVida" className="h-10 w-10 object-contain" />
+          <h1 className="text-2xl font-semibold">RootsVida TMS</h1>
+        </div>
         <div className="flex items-center gap-3">
           {me?.permissions?.includes("users.manage") && (
             <Link href="/users" className="text-sm text-neutral-500 underline hover:text-neutral-800">

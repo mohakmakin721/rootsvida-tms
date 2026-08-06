@@ -300,7 +300,9 @@ export function ItineraryBuilder({
       rounding: "nearest_1",
       fx_currency: fxCurrency,
       fx_rate: fxRate ? fxRate : null,
-      margin_floor: marginFloor ? marginFloor : null,
+      // The field is a percentage (e.g. 12); the engine wants a fraction (0.12).
+      margin_floor:
+        marginFloor && Number(marginFloor) > 0 ? String(Number(marginFloor) / 100) : null,
     };
   }, [segments, days, iTitle, iStart, iEnd, buyerStateCode, fxCurrency, fxRate, marginFloor]);
 
@@ -711,7 +713,7 @@ const DAYS_INFO = (
     One row per day of the trip — the days come from your travel dates automatically.
     <br />• <b>Present</b> — tap a group to mark it away that day; a group that’s
     away doesn’t pay for that day’s stay.
-    <br />• <b>Add cost</b> — a stay (room rate), transport, guide, tickets, etc.
+    <br />• <b>Add service</b> — a stay (room rate), transport, guide, tickets, etc.
     <br />• <b>Allocation</b> — “all travellers” splits across everyone; “by pax
     class” within one class; “specific groups” across the ones you pick; “per-pax”
     is a per-person amount.
@@ -823,7 +825,7 @@ function DaysSection({
                 ))}
               </div>
               <button onClick={() => onAddComponent(idx)} className="mt-2 text-xs font-medium text-neutral-600 hover:text-neutral-900">
-                + Add cost
+                + Add service
               </button>
             </div>
           ))}
@@ -1020,7 +1022,7 @@ function Sidebar({
         </div>
 
         <div className="mb-3 space-y-2">
-          <Field label="Buyer’s state (sets GST)">
+          <Field label="Client’s state (for GST)">
             <select className={inputCls} value={buyerStateCode} onChange={(e) => setBuyerStateCode(e.target.value)}>
               {GST_STATES.map((s) => (
                 <option key={s.code} value={s.code}>
@@ -1042,8 +1044,12 @@ function Sidebar({
               <input className={inputCls} value={fxRate} onChange={(e) => setFxRate(e.target.value)} placeholder="95" />
             </Field>
           </div>
-          <Field label="Minimum margin (fraction, e.g. 0.10)">
-            <input className={inputCls} value={marginFloor} onChange={(e) => setMarginFloor(e.target.value)} placeholder="0.10" />
+          <Field label="Minimum margin % (optional)">
+            <input className={inputCls} value={marginFloor} onChange={(e) => setMarginFloor(e.target.value)} placeholder="e.g. 12" />
+            <span className="mt-1 text-[11px] leading-snug text-neutral-400">
+              A safety floor: if set, a quote priced below this margin is blocked when
+              you issue it (an owner can override). Leave blank for no floor.
+            </span>
           </Field>
         </div>
 

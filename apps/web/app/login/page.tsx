@@ -38,8 +38,10 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center px-6">
       <div className="w-full max-w-sm">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/roots-logo.png" alt="RootsVida" className="mb-4 h-16 w-16 object-contain" />
         <h1 className="text-2xl font-semibold text-neutral-900">RootsVida TMS</h1>
-        <p className="mt-1 text-sm text-neutral-500">Sign in to continue.</p>
+        <p className="mt-1 text-sm text-neutral-500">Travel management workspace — sign in to continue.</p>
 
         <form onSubmit={submit} className="mt-6 space-y-3">
           <label className="block">

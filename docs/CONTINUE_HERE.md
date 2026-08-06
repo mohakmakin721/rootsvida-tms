@@ -5,9 +5,29 @@ This is a faithful development log (what was built, every commit, the commands, 
 decisions, the state) — not a verbatim message transcript. Read this top-to-bottom
 and you have everything to resume.
 
-**As of:** git HEAD `13512fd` · **237 tests passing** · migrations through `0015` ·
+**As of:** git HEAD `31464b8`+ · **~241 tests passing** · migrations through `0017` ·
 Phase 1 ✅ · Phase 2 ✅ · Phase 3 ✅ · Phase 4 ✅ · **Security hardening ✅** (auth +
-web login + users admin). **Session 2026-08-02 (owner-requested batch):**
+web login + users admin).
+
+**Session 2026-08-03 (owner batch #3 — vendor model + builder flow):**
+- **M8** — **vendor kinds consolidated to 7** aligned with cost kinds: stay,
+  transport, guide, activity, meal, permit, misc (migration 0016 remaps
+  hotel/homestay→stay, facilitator/photographer→misc). **Rates unified + kind-aware**:
+  amount+dates always, meal plan for stay+meal, occupancy/bedding for stay only,
+  others rate-only (RateIn defaults meal_plan=EP/occupancy=single). M7 per-type UI
+  forms + room-types section removed; builder inline add-vendor consistent w/ browser.
+- **M9** — **builder is a guided flow** (Client & project → Traveller groups → Days;
+  steps lock with hints until prerequisites are met). **Days are the travel window**
+  (auto-generated one-per-date, read-only date, "Align days" prompt on date change).
+- **M10** — corporate clients carry a **company name** (`clients.corporate_name`,
+  migration 0017; required for corporate; shown in intake + client chip).
+- **M11** — **rename roles** inline on `/users` (built-ins + custom; key unaffected).
+- **M12** — margin field relabelled to "Minimum margin %" + help (percentage now,
+  converted to fraction); travel-terminology tweaks (Add service, Client's state,
+  intro copy); **RootsVida logo** added (login + home; `public/roots-logo.png`;
+  middleware matcher excludes static assets).
+
+**Session 2026-08-02 (owner-requested batch #2):**
 - **M1** — dropped **SAARC** everywhere (builder UI, `PaxClass` app enum + TS type,
   and the PG `pax_class` enum via migration 0013; now `{indian, foreign}`); added
   **delete users** (`DELETE /auth/users/{id}`, soft delete, owner-only, guards

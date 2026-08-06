@@ -36,6 +36,7 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Run on everything except Next's static assets and the favicon.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // Run on everything except Next's static assets, the favicon, and public files
+  // (images/fonts) so e.g. the logo loads on the logged-out login page.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|gif|ico|webp|woff2?)).*)"],
 };

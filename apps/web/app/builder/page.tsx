@@ -30,9 +30,9 @@ export default async function BuildPage() {
         </Link>
         <h1 className="mt-1 text-2xl font-semibold">Itinerary builder</h1>
         <p className="mt-1 text-sm text-neutral-600">
-          Define traveller groups, lay out the days, and add costs. The sidebar
-          reprices live — every number comes from the deterministic engine, never a
-          guess.
+          Enter the client &amp; trip, define traveller groups, then add the day-by-day
+          services. The sidebar prices live — every number comes from the deterministic
+          engine, never a guess.
         </p>
       </header>
 
