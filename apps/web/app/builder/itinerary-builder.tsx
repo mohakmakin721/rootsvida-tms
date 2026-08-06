@@ -55,6 +55,18 @@ function addDays(iso: string, n: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** Every date from start to end inclusive (capped for safety). */
+function datesInWindow(start: string, end: string): string[] {
+  const out: string[] = [];
+  if (!start || !end || end < start) return out;
+  let cur = start;
+  for (let i = 0; i < 366 && cur <= end; i += 1) {
+    out.push(cur);
+    cur = addDays(cur, 1);
+  }
+  return out;
+}
+
 const TODAY = new Date().toISOString().slice(0, 10);
 
 export function ItineraryBuilder({
@@ -122,32 +134,9 @@ export function ItineraryBuilder({
     );
   }
 
-  // ---- day mutations ------------------------------------------------------ //
-  function addDay() {
-    setDays((prev) => {
-      const n = prev.length + 1;
-      const date = prev.length
-        ? addDays(prev[prev.length - 1].date, 1)
-        : intake?.start_date ?? TODAY;
-      const day: DayDraft = {
-        day_number: n,
-        date,
-        destination_id: null,
-        present_segment_keys: segments.map((s) => s.key),
-        components: [],
-      };
-      return [...prev, day];
-    });
-  }
-
+  // ---- day mutations (days are derived from the travel window) ------------ //
   function updateDay(idx: number, patch: Partial<DayDraft>) {
     setDays((prev) => prev.map((d, i) => (i === idx ? { ...d, ...patch } : d)));
-  }
-
-  function removeDay(idx: number) {
-    setDays((prev) =>
-      prev.filter((_, i) => i !== idx).map((d, i) => ({ ...d, day_number: i + 1 })),
-    );
   }
 
   function togglePresence(idx: number, key: string) {
@@ -216,6 +205,41 @@ export function ItineraryBuilder({
   const iTitle = intake?.title ?? "";
   const iStart = intake?.start_date ?? TODAY;
   const iEnd = intake?.end_date ?? addDays(TODAY, 3);
+
+  // ---- guided flow: Client & project → traveller groups → days ------------ //
+  const intakeReady = !!intake?.ready; // client + project + title + valid dates
+  const segmentsReady = ready;         // every group has a label, markup, pax
+
+  // The trip's days ARE the travel window: one row per date from start to end.
+  const expectedDates = useMemo(() => datesInWindow(iStart, iEnd), [iStart, iEnd]);
+  const daysInSync =
+    days.length === expectedDates.length && days.every((d, i) => d.date === expectedDates[i]);
+
+  const alignDays = useCallback(() => {
+    setDays((prev) => {
+      const byDate = new Map(prev.map((d) => [d.date, d]));
+      return expectedDates.map((date, i) => {
+        const existing = byDate.get(date);
+        return existing
+          ? { ...existing, day_number: i + 1 }
+          : {
+              day_number: i + 1,
+              date,
+              destination_id: null,
+              present_segment_keys: segments.map((s) => s.key),
+              components: [],
+            };
+      });
+    });
+  }, [expectedDates, segments]);
+
+  // Auto-build the day rows the first time the trip is ready; after that, a date
+  // change is surfaced as an "align" prompt rather than silently dropping days.
+  useEffect(() => {
+    if (intakeReady && segmentsReady && days.length === 0 && expectedDates.length > 0) {
+      alignDays();
+    }
+  }, [intakeReady, segmentsReady, days.length, expectedDates.length, alignDays]);
 
   const payload = useMemo(() => {
     const seg = segments.map((s) => ({
@@ -406,28 +430,57 @@ export function ItineraryBuilder({
     <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
       <div className="space-y-6">
         <ClientIntake onChange={handleIntake} />
-        <SegmentSection
-          segments={segments}
-          markupRules={markupRules}
-          onAdd={addSegment}
-          onUpdate={updateSegment}
-          onRemove={removeSegment}
-          onCreateRule={createMarkupRule}
-          onUpdateRule={updateMarkupRule}
-          onDeleteRule={deleteMarkupRule}
-        />
-        <DaysSection
-          days={days}
-          segments={segments}
-          destinations={destinations}
-          onAddDay={addDay}
-          onUpdateDay={updateDay}
-          onRemoveDay={removeDay}
-          onTogglePresence={togglePresence}
-          onAddComponent={addComponent}
-          onUpdateComponent={updateComponent}
-          onRemoveComponent={removeComponent}
-        />
+
+        {/* Step 2 — traveller groups (unlocks once client & project are complete) */}
+        {intakeReady ? (
+          <SegmentSection
+            segments={segments}
+            markupRules={markupRules}
+            onAdd={addSegment}
+            onUpdate={updateSegment}
+            onRemove={removeSegment}
+            onCreateRule={createMarkupRule}
+            onUpdateRule={updateMarkupRule}
+            onDeleteRule={deleteMarkupRule}
+          />
+        ) : (
+          <LockedStep
+            title="Traveller groups"
+            step={2}
+            hint="Complete the client & project details above (client, project code, itinerary title and travel dates) to add traveller groups."
+          />
+        )}
+
+        {/* Step 3 — days (unlocks once there's at least one valid traveller group) */}
+        {!intakeReady ? (
+          <LockedStep
+            title="Days"
+            step={3}
+            hint="Fill the client & project details, then add traveller groups, to plan the days."
+          />
+        ) : !segmentsReady ? (
+          <LockedStep
+            title="Days"
+            step={3}
+            hint="Add at least one traveller group (with a name, room type and markup rule) to plan the days."
+          />
+        ) : (
+          <DaysSection
+            days={days}
+            segments={segments}
+            destinations={destinations}
+            daysInSync={daysInSync}
+            expectedCount={expectedDates.length}
+            travelStart={iStart}
+            travelEnd={iEnd}
+            onAlign={alignDays}
+            onUpdateDay={updateDay}
+            onTogglePresence={togglePresence}
+            onAddComponent={addComponent}
+            onUpdateComponent={updateComponent}
+            onRemoveComponent={removeComponent}
+          />
+        )}
       </div>
 
       <Sidebar
@@ -639,9 +692,23 @@ function MarkupRuleManager({
   );
 }
 
+function LockedStep({ title, step, hint }: { title: string; step: number; hint: string }) {
+  return (
+    <section className="rounded-lg border border-dashed border-neutral-300 bg-neutral-50 p-4">
+      <div className="mb-1 flex items-center gap-2">
+        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-neutral-300 text-[10px] font-semibold text-white">
+          {step}
+        </span>
+        <h2 className="text-sm font-semibold text-neutral-500">{title} 🔒</h2>
+      </div>
+      <p className="text-xs text-neutral-500">{hint}</p>
+    </section>
+  );
+}
+
 const DAYS_INFO = (
   <>
-    One row per day of the trip.
+    One row per day of the trip — the days come from your travel dates automatically.
     <br />• <b>Present</b> — tap a group to mark it away that day; a group that’s
     away doesn’t pay for that day’s stay.
     <br />• <b>Add cost</b> — a stay (room rate), transport, guide, tickets, etc.
@@ -657,9 +724,12 @@ function DaysSection({
   days,
   segments,
   destinations,
-  onAddDay,
+  daysInSync,
+  expectedCount,
+  travelStart,
+  travelEnd,
+  onAlign,
   onUpdateDay,
-  onRemoveDay,
   onTogglePresence,
   onAddComponent,
   onUpdateComponent,
@@ -668,26 +738,33 @@ function DaysSection({
   days: DayDraft[];
   segments: SegmentDraft[];
   destinations: DestinationFacet[];
-  onAddDay: () => void;
+  daysInSync: boolean;
+  expectedCount: number;
+  travelStart: string;
+  travelEnd: string;
+  onAlign: () => void;
   onUpdateDay: (idx: number, patch: Partial<DayDraft>) => void;
-  onRemoveDay: (idx: number) => void;
   onTogglePresence: (idx: number, key: string) => void;
   onAddComponent: (idx: number) => void;
   onUpdateComponent: (dayIdx: number, compIdx: number, patch: Partial<ComponentDraft>) => void;
   onRemoveComponent: (dayIdx: number, compIdx: number) => void;
 }) {
   return (
-    <Card
-      title="Days"
-      info={DAYS_INFO}
-      action={
-        <button onClick={onAddDay} className={btnDark}>
-          + Add day
-        </button>
-      }
-    >
+    <Card title={`Days (${travelStart} → ${travelEnd})`} info={DAYS_INFO}>
+      {!daysInSync && (
+        <div className="mb-3 flex items-center justify-between gap-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          <span>
+            Your travel dates changed — the itinerary should have {expectedCount} day
+            {expectedCount === 1 ? "" : "s"} ({travelStart} → {travelEnd}). Align the days to
+            match (costs on dates still in range are kept; days outside the range are dropped).
+          </span>
+          <button onClick={onAlign} className={`${btnDark} shrink-0`}>
+            Align days to travel dates
+          </button>
+        </div>
+      )}
       {days.length === 0 ? (
-        <Empty>Add days, mark who’s present, then add costs to each day.</Empty>
+        <Empty>Set the travel dates above and the day rows will appear here.</Empty>
       ) : (
         <div className="space-y-4">
           {days.map((d, idx) => (
@@ -696,12 +773,7 @@ function DaysSection({
                 <span className="rounded bg-neutral-900 px-2 py-1 text-xs font-medium text-white">
                   Day {d.day_number}
                 </span>
-                <input
-                  type="date"
-                  className={`${inputCls} w-40`}
-                  value={d.date}
-                  onChange={(e) => onUpdateDay(idx, { date: e.target.value })}
-                />
+                <span className="rounded bg-neutral-100 px-2 py-1 text-xs text-neutral-600">{d.date}</span>
                 <div className="w-52">
                   <Combobox
                     placeholder="Destination…"
@@ -714,9 +786,6 @@ function DaysSection({
                     }))}
                   />
                 </div>
-                <button onClick={() => onRemoveDay(idx)} className="ml-auto text-neutral-400 hover:text-red-600" aria-label="Remove day">
-                  ✕
-                </button>
               </div>
 
               {segments.length > 0 && (
