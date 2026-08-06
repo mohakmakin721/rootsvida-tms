@@ -5,9 +5,24 @@ This is a faithful development log (what was built, every commit, the commands, 
 decisions, the state) — not a verbatim message transcript. Read this top-to-bottom
 and you have everything to resume.
 
-**As of:** git HEAD `31464b8`+ · **~241 tests passing** · migrations through `0017` ·
+**As of:** git HEAD `a79faf1`+ · **242 tests passing** · migrations through `0018` ·
 Phase 1 ✅ · Phase 2 ✅ · Phase 3 ✅ · Phase 4 ✅ · **Security hardening ✅** (auth +
 web login + users admin).
+
+**Session 2026-08-06 (owner batch #4 — projects/quotes + itinerary editing):**
+- **N1** — quote form's margin field matches the builder ("Minimum margin %",
+  converted to a fraction); creation dates shown (project/itinerary/quote `created_at`).
+- **N2** — milestone semantics: Payment received / Payment due / Invoice (auto-added
+  on invoice generation) / Note (migration 0018 remaps old kinds); timeline UI relabels
+  + colour-codes.
+- **N3** — **/activity** screen: org-wide date-ordered milestone log
+  (`GET /projects/activity-log`) with search (code/client) + type/status/done filters +
+  colour coding + overdue flag.
+- **N4** — **edit itineraries**: `PUT /itineraries/{id}` replaces content in place;
+  `/builder?itinerary=<id>` prefills everything (groups/days/services/picked rates) and
+  saves via PUT. "Edit" buttons on the project workspace + an edit/new choice when an
+  existing project is picked in a fresh build. (Memoise the edit context — an unstable
+  object loops React.)
 
 **Session 2026-08-03 (owner batch #3 — vendor model + builder flow):**
 - **M8** — **vendor kinds consolidated to 7** aligned with cost kinds: stay,

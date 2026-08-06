@@ -40,7 +40,7 @@ docker ps --filter name=rootsvida
 ```powershell
 cd E:\Rootsvida\db
 python -m alembic upgrade head
-python -m alembic current   # should print 0017_client_corporate_name (head)
+python -m alembic current   # should print 0018_milestone_kinds (head)
 ```
 
 ## 3. Seed the org, tax rules, roles and owner user (idempotent — safe to re-run)
