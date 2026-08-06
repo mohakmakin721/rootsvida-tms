@@ -251,6 +251,7 @@ export interface ItineraryBrief {
   end_date: string;
   version: number;
   status: string;
+  created_at: string;
 }
 
 // Money fields arrive as decimal strings (FastAPI serializes Decimal as a string).

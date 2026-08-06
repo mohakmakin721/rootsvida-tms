@@ -40,7 +40,9 @@ function assumptionsBody(a: Assumptions): Record<string, unknown> {
     rounding: a.rounding,
     fx_currency: a.fx_currency,
     fx_rate: a.fx_rate ? a.fx_rate : null,
-    margin_floor: a.margin_floor ? a.margin_floor : null,
+    // Field is a percentage (e.g. 12); the engine wants a fraction (0.12).
+    margin_floor:
+      a.margin_floor && Number(a.margin_floor) > 0 ? String(Number(a.margin_floor) / 100) : null,
   };
 }
 
@@ -160,6 +162,9 @@ export function ProjectWorkspace({
           {project.client_name}
           {project.client_country ? ` · ${project.client_country}` : ""}
         </p>
+        <p className="mt-0.5 text-xs text-neutral-400">
+          Project created {new Date(project.created_at).toLocaleString()}
+        </p>
       </header>
 
       {error && (
@@ -186,6 +191,9 @@ export function ProjectWorkspace({
                     <div className="text-sm font-medium text-neutral-900">{it.title}</div>
                     <div className="text-xs text-neutral-500">
                       {it.start_date} → {it.end_date} · v{it.version} · {it.status}
+                    </div>
+                    <div className="text-[11px] text-neutral-400">
+                      created {new Date(it.created_at).toLocaleDateString()}
                     </div>
                   </div>
                   <button
@@ -346,8 +354,11 @@ function AssumptionsForm({
           <input className={inputCls} value={a.fx_rate} onChange={(e) => set({ fx_rate: e.target.value })} placeholder="95" />
         </Field>
       </div>
-      <Field label="Minimum margin (fraction, optional)">
-        <input className={inputCls} value={a.margin_floor} onChange={(e) => set({ margin_floor: e.target.value })} placeholder="0.10" />
+      <Field label="Minimum margin % (optional)">
+        <input className={inputCls} value={a.margin_floor} onChange={(e) => set({ margin_floor: e.target.value })} placeholder="e.g. 12" />
+        <span className="mt-1 text-[11px] leading-snug text-neutral-400">
+          Safety floor — a quote below this margin is blocked at issue (owner can override).
+        </span>
       </Field>
       <div className="flex items-end sm:col-span-2">
         <button className={`${btnDark} disabled:opacity-50`} disabled={busy} onClick={() => onSubmit(a)}>
@@ -514,6 +525,7 @@ function QuoteCard({
               />
             )}
             <Stat label="Rounding" value={quote.rounding_policy} />
+            <Stat label="Created" value={new Date(quote.created_at).toLocaleString()} />
             {quote.issued_at && <Stat label="Issued" value={new Date(quote.issued_at).toLocaleDateString()} />}
             {quote.valid_until && <Stat label="Valid until" value={quote.valid_until} />}
             {quote.engine_version && <Stat label="Engine" value={quote.engine_version} />}

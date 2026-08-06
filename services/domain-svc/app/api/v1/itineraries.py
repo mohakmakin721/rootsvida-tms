@@ -9,7 +9,7 @@ pricing preview (M7) assembles the exact same graph without persisting.
 from __future__ import annotations
 
 import uuid
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -88,6 +88,7 @@ class ItineraryOut(BaseModel):
     end_date: date
     version: int
     status: str
+    created_at: datetime | None = None
     segments: list[SegmentOut]
     days: list[DayOut]
 
@@ -102,6 +103,7 @@ class ItineraryBrief(BaseModel):
     end_date: date
     version: int
     status: str
+    created_at: datetime
 
 
 @router.get("/projects/{project_id}/itineraries", response_model=list[ItineraryBrief])
@@ -181,5 +183,6 @@ def _serialize(session: Session, itinerary: Itinerary) -> ItineraryOut:
         id=itinerary.id, project_id=itinerary.project_id, title=itinerary.title,
         start_date=itinerary.start_date, end_date=itinerary.end_date,
         version=itinerary.version, status=itinerary.status,
+        created_at=itinerary.created_at,
         segments=[SegmentOut.model_validate(s) for s in segments], days=day_out,
     )
