@@ -77,6 +77,9 @@ export default async function BuildPage({
         </div>
       ) : (
         <ItineraryBuilder
+          // Remount when the edit target changes so a client-side nav (e.g. the
+          // intake's "Edit" links) re-seeds all the builder state.
+          key={editId ?? "new"}
           initialMarkupRules={markupRules}
           destinations={destinations}
           edit={edit}

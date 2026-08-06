@@ -2,8 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import Link from "next/link";
-
 import type { ClientDetail, ClientSummary, ClientType, ItineraryBrief } from "@/lib/types";
 
 import { Card, Field, inputCls } from "./ui";
@@ -124,6 +122,7 @@ function NewOrExistingIntake({ onChange }: { onChange: (v: IntakeValue) => void 
   const [projectMode, setProjectMode] = useState<"new" | "existing">("new");
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [projectItineraries, setProjectItineraries] = useState<ItineraryBrief[]>([]);
+  const [showPast, setShowPast] = useState(false);
   const [code, setCode] = useState("");
   const [codeStatus, setCodeStatus] = useState<"" | "checking" | "available" | "taken">("");
 
@@ -175,6 +174,7 @@ function NewOrExistingIntake({ onChange }: { onChange: (v: IntakeValue) => void 
 
   // ---- existing project's itineraries (offer edit vs new) ----
   useEffect(() => {
+    setShowPast(false); // collapse the list whenever the selected project changes
     if (projectMode !== "existing" || !selectedProjectId) {
       setProjectItineraries([]);
       return;
@@ -347,25 +347,39 @@ function NewOrExistingIntake({ onChange }: { onChange: (v: IntakeValue) => void 
               </select>
             </Field>
             {projectItineraries.length > 0 && (
-              <div className="mt-2 rounded-md border border-neutral-200 bg-neutral-50 p-2 text-xs">
-                <p className="mb-1 text-neutral-500">
-                  This project already has {projectItineraries.length}{" "}
-                  itiner{projectItineraries.length === 1 ? "y" : "ies"} — edit one, or build a
-                  new one below:
-                </p>
-                <ul className="space-y-1">
-                  {projectItineraries.map((it) => (
-                    <li key={it.id} className="flex items-center justify-between gap-2">
-                      <span className="text-neutral-700">
-                        {it.title}{" "}
-                        <span className="text-neutral-400">({it.start_date} → {it.end_date})</span>
-                      </span>
-                      <Link href={`/builder?itinerary=${it.id}`} className="font-medium text-blue-600 underline hover:text-blue-800">
-                        Edit
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
+              <div className="mt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPast((s) => !s)}
+                  className="text-xs font-medium text-blue-600 underline hover:text-blue-800"
+                >
+                  {showPast
+                    ? "Hide past itineraries"
+                    : `Edit a past itinerary (${projectItineraries.length})`}
+                </button>
+                {showPast && (
+                  <div className="mt-1 max-h-48 overflow-y-auto rounded-md border border-neutral-200 bg-neutral-50 p-2 text-xs">
+                    <p className="mb-1 text-neutral-500">
+                      Pick one to edit, or build a new itinerary under this project below.
+                    </p>
+                    <ul className="space-y-1">
+                      {projectItineraries.map((it) => (
+                        <li key={it.id} className="flex items-center justify-between gap-2">
+                          <span className="text-neutral-700">
+                            {it.title}{" "}
+                            <span className="text-neutral-400">
+                              ({it.start_date} → {it.end_date} · created{" "}
+                              {new Date(it.created_at).toLocaleDateString()})
+                            </span>
+                          </span>
+                          <a href={`/builder?itinerary=${it.id}`} className="shrink-0 font-medium text-blue-600 underline hover:text-blue-800">
+                            Edit
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             )}
           </>
