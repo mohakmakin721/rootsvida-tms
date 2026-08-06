@@ -94,6 +94,16 @@ def test_create_custom_role_then_gate_follows_it(
     assert me["permissions"] == ["suppliers.manage"]
 
 
+def test_roles_can_be_renamed(client: tuple[TestClient, dict[str, str]]) -> None:
+    c, t = client
+    roles = {r["key"]: r for r in c.get("/api/v1/roles", headers=_h(t["owner"])).json()}
+    # A built-in role's display name can be changed (its key is unaffected).
+    r = c.patch(f"/api/v1/roles/{roles['sales']['id']}",
+                json={"label": "Travel Consultant"}, headers=_h(t["owner"]))
+    assert r.status_code == 200
+    assert r.json()["label"] == "Travel Consultant" and r.json()["key"] == "sales"
+
+
 def test_owner_role_cannot_lose_permissions(
     client: tuple[TestClient, dict[str, str]]
 ) -> None:

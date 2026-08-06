@@ -366,8 +366,9 @@ function RolesManager({
         <div>
           <h2 className="text-sm font-semibold text-neutral-800">Roles &amp; permissions</h2>
           <p className="text-xs text-neutral-500">
-            Tick a permission to grant it to a role. The Owner role always keeps every
-            permission. Built-in roles can be re-scoped but not deleted.
+            Click a role’s name to rename it; tick a permission to grant it. The Owner
+            role always keeps every permission. Built-in roles can be renamed and
+            re-scoped but not deleted; custom roles can also be deleted.
           </p>
         </div>
         <button onClick={() => setCreating((c) => !c)} className={btnDark}>
@@ -423,9 +424,12 @@ function RolesManager({
             {roles.map((role) => (
               <tr key={role.id} className="hover:bg-neutral-50">
                 <td className="px-4 py-3 align-top">
-                  <div className="font-medium text-neutral-900">
-                    {role.label}
-                    {role.is_system && <span className="ml-2 text-[10px] uppercase text-neutral-400">built-in</span>}
+                  <div className="flex items-center gap-1">
+                    <EditableLabel
+                      value={role.label}
+                      onSave={(label) => patchRole(role.id, { label })}
+                    />
+                    {role.is_system && <span className="text-[10px] uppercase text-neutral-400">built-in</span>}
                   </div>
                   <div className="text-xs text-neutral-500">
                     {role.user_count} {role.user_count === 1 ? "user" : "users"}
@@ -462,5 +466,34 @@ function RolesManager({
         </table>
       </div>
     </section>
+  );
+}
+
+/** An inline-editable role name: type to rename, saves on Enter or blur. */
+function EditableLabel({ value, onSave }: { value: string; onSave: (v: string) => void }) {
+  const [draft, setDraft] = useState(value);
+  // Keep in sync when the parent value changes (e.g. after a refresh).
+  const [lastValue, setLastValue] = useState(value);
+  if (value !== lastValue) {
+    setLastValue(value);
+    setDraft(value);
+  }
+  function commit() {
+    const next = draft.trim();
+    if (next && next !== value) onSave(next);
+    else setDraft(value);
+  }
+  return (
+    <input
+      className="w-40 rounded border border-transparent bg-transparent px-1 py-0.5 text-sm font-medium text-neutral-900 hover:border-neutral-200 focus:border-neutral-400 focus:bg-white focus:outline-none"
+      value={draft}
+      title="Click to rename this role"
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") e.currentTarget.blur();
+        if (e.key === "Escape") { setDraft(value); e.currentTarget.blur(); }
+      }}
+    />
   );
 }
