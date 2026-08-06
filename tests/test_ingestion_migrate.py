@@ -130,7 +130,7 @@ def test_normalize_phone_none() -> None:
 def test_normalize_rajasthan_maps_core_fields() -> None:
     norm = normalize_rajasthan(_row())
     assert norm is not None
-    assert norm.kind is SupplierKind.HOTEL
+    assert norm.kind is SupplierKind.STAY
     assert norm.display_name == "Paawana Haveli"
     assert norm.category == "Luxury"
     assert norm.property_type == "Heritage Hotel"
@@ -142,10 +142,11 @@ def test_normalize_rajasthan_maps_core_fields() -> None:
     assert norm.contact.phone_e164 == "+919928655588"
 
 
-def test_normalize_rajasthan_detects_homestay() -> None:
+def test_normalize_rajasthan_accommodation_is_stay() -> None:
+    # Accommodation (incl. homestays) is a single 'stay' vendor kind now.
     norm = normalize_rajasthan(_row(Name="Green Homestay", Type=None))
     assert norm is not None
-    assert norm.kind is SupplierKind.HOMESTAY
+    assert norm.kind is SupplierKind.STAY
 
 
 def test_normalize_rajasthan_blank_name_is_unmappable() -> None:
@@ -185,7 +186,7 @@ def test_migrate_creates_supplier_contact_and_destination(db_session: Session) -
     supplier = db_session.get(Supplier, row.normalized_supplier_id)
     assert supplier is not None
     assert supplier.display_name == "Paawana Haveli"
-    assert supplier.kind is SupplierKind.HOTEL
+    assert supplier.kind is SupplierKind.STAY
     assert supplier.status == "prospect"
 
     dest = db_session.get(Destination, supplier.destination_id)

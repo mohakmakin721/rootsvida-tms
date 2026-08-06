@@ -94,8 +94,9 @@ def normalize_rajasthan(raw: dict[str, Any]) -> NormalizedSupplier | None:
         return None
 
     property_type = _text(raw.get("Type"))
-    haystack = f"{name} {property_type or ''}".lower()
-    kind = SupplierKind.HOMESTAY if "homestay" in haystack else SupplierKind.HOTEL
+    # All accommodation is a 'stay' vendor now; the homestay/hotel nuance is kept
+    # as property_type rather than a distinct kind.
+    kind = SupplierKind.STAY
 
     remarks = _text(raw.get("Remarks"))
     status_note = _text(raw.get("Status"))

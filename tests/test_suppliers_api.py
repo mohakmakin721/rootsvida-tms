@@ -45,15 +45,15 @@ def seeded(db_session: Session) -> Iterator[tuple[TestClient, dict[str, uuid.UUI
     db_session.flush()
 
     # A luxury Jaipur hotel with a fresh rate + contact + room type + COMMERCIALS.
-    taj = Supplier(org_id=org.id, kind=SupplierKind.HOTEL, legal_name="Taj Jai Mahal Palace",
+    taj = Supplier(org_id=org.id, kind=SupplierKind.STAY, legal_name="Taj Jai Mahal Palace",
                    display_name="Taj Jai Mahal", destination_id=jaipur.id,
                    category="Luxury", property_type="Heritage", status="active")
     # A budget Jaipur hotel with only an EXPIRED rate.
-    zostel = Supplier(org_id=org.id, kind=SupplierKind.HOMESTAY, legal_name="Zostel Jaipur",
+    zostel = Supplier(org_id=org.id, kind=SupplierKind.STAY, legal_name="Zostel Jaipur",
                       display_name="Zostel Jaipur", destination_id=jaipur.id,
                       category="Budget", status="prospect")
     # A Udaipur hotel with no rates at all.
-    lake = Supplier(org_id=org.id, kind=SupplierKind.HOTEL, legal_name="Lake Palace",
+    lake = Supplier(org_id=org.id, kind=SupplierKind.STAY, legal_name="Lake Palace",
                     display_name="Lake Palace", destination_id=udaipur.id,
                     category="Luxury", status="active")
     db_session.add_all([taj, zostel, lake])
@@ -127,14 +127,15 @@ def test_filter_by_status_and_kind(seeded) -> None:
     body = client.get("/api/v1/suppliers", params={"status": "active"}).json()
     assert {s["display_name"] for s in body["items"]} == {"Taj Jai Mahal", "Lake Palace"}
 
-    body = client.get("/api/v1/suppliers", params={"kind": "homestay"}).json()
-    assert [s["display_name"] for s in body["items"]] == ["Zostel Jaipur"]
-
-    # Several kinds, comma-separated (the builder passes e.g. hotel,homestay for a stay).
-    body = client.get("/api/v1/suppliers", params={"kind": "hotel,homestay"}).json()
+    # All three are 'stay' vendors now (accommodation consolidated).
+    body = client.get("/api/v1/suppliers", params={"kind": "stay"}).json()
     assert {s["display_name"] for s in body["items"]} == {
         "Taj Jai Mahal", "Zostel Jaipur", "Lake Palace"
     }
+
+    # Several kinds, comma-separated (still supported).
+    body = client.get("/api/v1/suppliers", params={"kind": "stay,meal"}).json()
+    assert len(body["items"]) == 3
     body = client.get("/api/v1/suppliers", params={"kind": "transport,guide"}).json()
     assert body["items"] == []
 
@@ -241,7 +242,7 @@ def test_supplier_crud(seeded) -> None:
     client, ids = seeded
     # Create a supplier.
     created = client.post("/api/v1/suppliers", json={
-        "kind": "hotel", "legal_name": "New Hotel Pvt Ltd", "display_name": "New Hotel",
+        "kind": "stay", "legal_name": "New Hotel Pvt Ltd", "display_name": "New Hotel",
         "destination_id": str(ids["jaipur"]), "category": "Mid", "status": "prospect",
     })
     assert created.status_code == 201, created.text

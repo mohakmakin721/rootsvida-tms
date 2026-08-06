@@ -208,8 +208,10 @@ class SupplierUpdate(BaseModel):
 
 class RateIn(BaseModel):
     room_type_id: uuid.UUID | None = None
-    meal_plan: MealPlan
-    occupancy: Occupancy
+    # Meal plan applies to stay + meal vendors; occupancy to stay only. Both default
+    # so transport/guide/activity/permit/misc rates can send just an amount + dates.
+    meal_plan: MealPlan = MealPlan.EP
+    occupancy: Occupancy = Occupancy.SINGLE
     amount: Decimal
     currency: str = "INR"
     tax_basis: TaxBasis = TaxBasis.GROSS_OF_TAX

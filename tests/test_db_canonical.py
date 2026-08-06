@@ -24,7 +24,7 @@ def _org_id(session: Session):
 def _supplier(session: Session, **kw) -> Supplier:
     s = Supplier(
         org_id=_org_id(session),
-        kind=SupplierKind.HOTEL,
+        kind=SupplierKind.STAY,
         legal_name="Test Hotel",
         display_name="Test Hotel",
         **kw,

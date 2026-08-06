@@ -80,7 +80,7 @@ def _fresh_org(session: Session) -> uuid.UUID:
 
 def _supplier(session: Session, org_id: uuid.UUID, name: str, dest: uuid.UUID) -> Supplier:
     s = Supplier(
-        org_id=org_id, kind=SupplierKind.HOTEL, legal_name=name,
+        org_id=org_id, kind=SupplierKind.STAY, legal_name=name,
         display_name=name, destination_id=dest,
     )
     session.add(s)

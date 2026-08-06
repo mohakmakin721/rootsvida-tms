@@ -44,16 +44,16 @@ class ClientType(StrEnum):
 
 
 class SupplierKind(StrEnum):
-    """Kinds of supplier the canonical model can represent (Part 2 §4.1)."""
+    """Vendor types — kept 1:1 with the itinerary ComponentKind so a cost of a
+    given kind maps to vendors of the same kind (owner decision 2026-08). 'stay'
+    covers all accommodation (was hotel/homestay); facilitator/photographer fold
+    into 'misc'."""
 
-    HOTEL = "hotel"
-    HOMESTAY = "homestay"
+    STAY = "stay"
     TRANSPORT = "transport"
     GUIDE = "guide"
     ACTIVITY = "activity"
     MEAL = "meal"
-    FACILITATOR = "facilitator"
-    PHOTOGRAPHER = "photographer"
     PERMIT = "permit"
     MISC = "misc"
 

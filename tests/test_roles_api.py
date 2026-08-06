@@ -73,7 +73,7 @@ def test_create_custom_role_then_gate_follows_it(
 ) -> None:
     c, t = client
     # Readonly can't manage suppliers yet.
-    supplier = {"kind": "hotel", "legal_name": "X", "display_name": "X"}
+    supplier = {"kind": "stay", "legal_name": "X", "display_name": "X"}
     assert c.post("/api/v1/suppliers", json=supplier,
                   headers=_h(t["readonly"])).status_code == 403
 

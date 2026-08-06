@@ -70,7 +70,7 @@ def _seed(session: Session, org_id: uuid.UUID) -> None:
     def _supplier(name: str, destination_id: uuid.UUID | None) -> Supplier:
         s = Supplier(
             org_id=org_id,
-            kind=SupplierKind.HOTEL,
+            kind=SupplierKind.STAY,
             legal_name=name,
             display_name=name,
             destination_id=destination_id,

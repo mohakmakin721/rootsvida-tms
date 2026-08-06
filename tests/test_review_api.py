@@ -145,7 +145,7 @@ def test_approving_merge_candidate_executes_merge(
     for name in ("Utsav Camp", "utsav camp"):
         db_session.add(
             Supplier(
-                org_id=org_id, kind=SupplierKind.HOTEL, legal_name=name,
+                org_id=org_id, kind=SupplierKind.STAY, legal_name=name,
                 display_name=name, destination_id=dest.id,
             )
         )

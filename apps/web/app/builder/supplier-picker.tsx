@@ -13,31 +13,15 @@ export interface RatePick {
   rate_amount: string | null;
 }
 
-// Each component kind restricts the vendor search to matching vendor type(s) — so
-// a "guide" cost only suggests guide vendors, a "stay" only hotels/homestays, etc.
-const KIND_FILTER: Record<ComponentKind, string[]> = {
-  stay: ["hotel", "homestay"],
-  transport: ["transport"],
-  guide: ["guide"],
-  activity: ["activity"],
-  meal: ["meal"],
-  permit: ["permit"],
-  misc: ["misc", "facilitator", "photographer"],
-};
-
-// The default vendor kind to pre-select when adding a new vendor for this component.
-const NEW_VENDOR_KIND: Record<ComponentKind, string> = {
-  stay: "hotel",
-  transport: "transport",
-  guide: "guide",
-  activity: "activity",
-  meal: "meal",
-  permit: "permit",
-  misc: "misc",
-};
-
+// Vendor kinds are 1:1 with cost kinds — a "guide" cost only suggests guide
+// vendors, a "stay" only stay vendors, etc. (the search passes `kind` directly).
 const MEAL_PLANS = ["EP", "CP", "MAP", "AP", "CPAI", "MAPAI", "APAI", "CAPAI"];
-const OCCUPANCIES = ["single", "double", "triple", "extra_adult", "child_wb", "child_nb"];
+const OCCUPANCIES = ["single", "double", "triple", "extra_adult"];
+const OCCUPANCY_LABEL: Record<string, string> = {
+  single: "single", double: "double", triple: "triple", extra_adult: "extra bed",
+};
+const usesMealPlan = (kind: string) => kind === "stay" || kind === "meal";
+const usesOccupancy = (kind: string) => kind === "stay";
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
@@ -48,8 +32,10 @@ function inAYear(): string {
   return d.toISOString().slice(0, 10);
 }
 
-function rateLabel(supplierName: string, r: Rate): string {
-  return `${supplierName} · ${r.meal_plan} · ${r.occupancy}`;
+function rateLabel(supplierName: string, r: Rate, kind: string): string {
+  if (usesOccupancy(kind)) return `${supplierName} · ${r.meal_plan} · ${OCCUPANCY_LABEL[r.occupancy] ?? r.occupancy}`;
+  if (usesMealPlan(kind)) return `${supplierName} · ${r.meal_plan}`;
+  return `${supplierName} · ₹${Number(r.amount).toLocaleString("en-IN")}`;
 }
 
 export function SupplierRatePicker({
@@ -90,8 +76,7 @@ export function SupplierRatePicker({
     const handle = setTimeout(async () => {
       const params = new URLSearchParams({ limit: "15" });
       if (query.trim()) params.set("q", query.trim());
-      const kf = KIND_FILTER[kind];
-      if (kf && kf.length) params.set("kind", kf.join(","));
+      params.set("kind", kind); // cost kind === vendor kind
       if (destinationId) params.set("destination_id", destinationId);
       try {
         const res = await fetch(`/api/v1/suppliers?${params.toString()}`);
@@ -131,7 +116,7 @@ export function SupplierRatePicker({
     onPick({
       supplier_id: detail.id,
       rate_id: r.id,
-      rate_label: rateLabel(detail.display_name, r),
+      rate_label: rateLabel(detail.display_name, r, kind),
       rate_amount: r.amount,
     });
   }
@@ -178,7 +163,8 @@ export function SupplierRatePicker({
               <option value="">— pick a rate —</option>
               {rates.map((r) => (
                 <option key={r.id} value={r.id}>
-                  {r.meal_plan} · {r.occupancy} · ₹{Number(r.amount).toLocaleString("en-IN")}
+                  {usesMealPlan(kind) ? `${r.meal_plan}${usesOccupancy(kind) ? ` · ${OCCUPANCY_LABEL[r.occupancy] ?? r.occupancy}` : ""} · ` : ""}
+                  ₹{Number(r.amount).toLocaleString("en-IN")}
                   {r.freshness !== "fresh" ? ` (${r.freshness})` : ""}
                 </option>
               ))}
@@ -278,19 +264,23 @@ function AddSupplierRate({
   onError: (msg: string | null) => void;
 }) {
   const [name, setName] = useState(existing?.display_name ?? "");
-  const [supplierKind, setSupplierKind] = useState(NEW_VENDOR_KIND[kind] ?? "misc");
+  // The vendor kind is fixed to the cost kind (stay cost → stay vendor).
+  const supplierKind = kind;
   const [mealPlan, setMealPlan] = useState(kind === "stay" ? "MAP" : "EP");
   const [occupancy, setOccupancy] = useState(kind === "stay" ? "double" : "single");
   const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
+  const showMeal = usesMealPlan(kind);
+  const showOcc = usesOccupancy(kind);
 
   async function submit() {
     if (!existing && !name.trim()) {
       onError("Give the new vendor a name.");
       return;
     }
-    if (amount === "" || Number(amount) < 0) {
-      onError("Enter the rate amount.");
+    const amt = Number(amount);
+    if (amount.trim() === "" || Number.isNaN(amt) || amt < 0) {
+      onError("Enter the rate amount (a number in ₹).");
       return;
     }
     setBusy(true);
@@ -323,18 +313,16 @@ function AddSupplierRate({
         supplierId = s.id as string;
         supplierName = s.display_name as string;
       }
+      const rateBody: Record<string, unknown> = {
+        amount, currency: "INR", tax_basis: "gross_of_tax",
+        valid_from: today(), valid_to: inAYear(),
+      };
+      if (showMeal) rateBody.meal_plan = mealPlan;
+      if (showOcc) rateBody.occupancy = occupancy;
       const rRes = await fetch(`/api/v1/suppliers/${supplierId}/rates`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          meal_plan: mealPlan,
-          occupancy,
-          amount,
-          currency: "INR",
-          tax_basis: "gross_of_tax",
-          valid_from: today(),
-          valid_to: inAYear(),
-        }),
+        body: JSON.stringify(rateBody),
       });
       if (!rRes.ok) {
         const d = await rRes.json().catch(() => null);
@@ -346,10 +334,13 @@ function AddSupplierRate({
         return;
       }
       const r = await rRes.json();
+      const label = showOcc
+        ? `${supplierName} · ${mealPlan} · ${OCCUPANCY_LABEL[occupancy] ?? occupancy}`
+        : showMeal ? `${supplierName} · ${mealPlan}` : `${supplierName} · ₹${amount}`;
       onDone({
         supplier_id: supplierId!,
         rate_id: r.id as string,
-        rate_label: `${supplierName} · ${mealPlan} · ${occupancy}`,
+        rate_label: label,
         rate_amount: String(amount),
       });
     } finally {
@@ -364,30 +355,27 @@ function AddSupplierRate({
       </p>
       <div className="flex flex-wrap items-center gap-1.5">
         {!existing && (
-          <>
-            <input
-              className={`${inputCls} w-40 text-xs`}
-              placeholder="Vendor name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-            <select className={`${inputCls} text-xs`} value={supplierKind} onChange={(e) => setSupplierKind(e.target.value)}>
-              {["hotel", "homestay", "transport", "guide", "activity", "meal", "facilitator", "permit", "misc"].map((k) => (
-                <option key={k} value={k}>{k}</option>
-              ))}
-            </select>
-          </>
+          <input
+            className={`${inputCls} w-40 text-xs`}
+            placeholder={`New ${kind} vendor name`}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
         )}
-        <select className={`${inputCls} text-xs`} value={mealPlan} onChange={(e) => setMealPlan(e.target.value)}>
-          {MEAL_PLANS.map((m) => (
-            <option key={m} value={m}>{m}</option>
-          ))}
-        </select>
-        <select className={`${inputCls} text-xs`} value={occupancy} onChange={(e) => setOccupancy(e.target.value)}>
-          {OCCUPANCIES.map((o) => (
-            <option key={o} value={o}>{o}</option>
-          ))}
-        </select>
+        {showMeal && (
+          <select className={`${inputCls} text-xs`} value={mealPlan} onChange={(e) => setMealPlan(e.target.value)}>
+            {MEAL_PLANS.map((m) => (
+              <option key={m} value={m}>{m}</option>
+            ))}
+          </select>
+        )}
+        {showOcc && (
+          <select className={`${inputCls} text-xs`} value={occupancy} onChange={(e) => setOccupancy(e.target.value)}>
+            {OCCUPANCIES.map((o) => (
+              <option key={o} value={o}>{OCCUPANCY_LABEL[o] ?? o}</option>
+            ))}
+          </select>
+        )}
         <input
           type="number"
           min={0}
