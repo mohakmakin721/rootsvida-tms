@@ -25,6 +25,8 @@ from app.models import (
     ItineraryComponent,
     ItineraryDay,
     Project,
+    Rate,
+    Supplier,
     TravellerSegment,
 )
 from app.models.enums import AllocationBasis, ComponentKind, Occupancy, PaxClass
@@ -34,6 +36,7 @@ from app.services.itinerary import (
 from app.services.itinerary import (
     KeyResolutionError,
     build_itinerary,
+    update_itinerary,
 )
 
 router = APIRouter(tags=["itineraries"])
@@ -57,6 +60,11 @@ class ComponentOut(BaseModel):
     supplier_id: uuid.UUID | None
     rate_id: uuid.UUID | None
     transport_rate_id: uuid.UUID | None
+    # Resolved for display when editing (so the builder can label a picked rate).
+    supplier_name: str | None = None
+    rate_amount: Decimal | None = None
+    rate_meal_plan: str | None = None
+    rate_occupancy: str | None = None
 
 
 class DayOut(BaseModel):
@@ -156,6 +164,41 @@ def get_itinerary(
     return _serialize(session, itinerary)
 
 
+@router.put("/itineraries/{itinerary_id}", response_model=ItineraryOut)
+def replace_itinerary(
+    itinerary_id: uuid.UUID,
+    body: ItineraryCreateIn,
+    session: Session = Depends(get_session),
+    org_id: uuid.UUID = Depends(current_org_id),
+) -> ItineraryOut:
+    """Replace an itinerary's content in place (the builder's edit flow). Same id +
+    version; the old segments/days/costs are swapped for the new draft."""
+    itinerary = session.scalar(
+        select(Itinerary).where(Itinerary.id == itinerary_id, Itinerary.org_id == org_id)
+    )
+    if itinerary is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="itinerary not found")
+    try:
+        update_itinerary(session, org_id, itinerary, body)
+    except KeyResolutionError as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from None
+    return _serialize(session, itinerary)
+
+
+def _component_out(session: Session, c: ItineraryComponent) -> ComponentOut:
+    out = ComponentOut.model_validate(c)
+    if c.supplier_id is not None:
+        supplier = session.get(Supplier, c.supplier_id)
+        out.supplier_name = supplier.display_name if supplier else None
+    if c.rate_id is not None:
+        rate = session.get(Rate, c.rate_id)
+        if rate is not None:
+            out.rate_amount = Decimal(str(rate.amount))
+            out.rate_meal_plan = rate.meal_plan.value
+            out.rate_occupancy = rate.occupancy.value
+    return out
+
+
 def _serialize(session: Session, itinerary: Itinerary) -> ItineraryOut:
     segments = list(session.scalars(
         select(TravellerSegment).where(TravellerSegment.itinerary_id == itinerary.id)
@@ -177,7 +220,7 @@ def _serialize(session: Session, itinerary: Itinerary) -> ItineraryOut:
         day_out.append(DayOut(
             id=d.id, day_number=d.day_number, date=d.date, destination_id=d.destination_id,
             narrative=d.narrative, present_segment_ids=present,
-            components=[ComponentOut.model_validate(c) for c in comps],
+            components=[_component_out(session, c) for c in comps],
         ))
     return ItineraryOut(
         id=itinerary.id, project_id=itinerary.project_id, title=itinerary.title,

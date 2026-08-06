@@ -2,11 +2,22 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import type { ClientDetail, ClientSummary, ClientType } from "@/lib/types";
+import Link from "next/link";
+
+import type { ClientDetail, ClientSummary, ClientType, ItineraryBrief } from "@/lib/types";
 
 import { Card, Field, inputCls } from "./ui";
 
 const CLIENT_TYPES: ClientType[] = ["individual", "family", "group", "corporate"];
+
+export interface EditIntakeInitial {
+  projectId: string;
+  projectCode: string;
+  clientName: string;
+  title: string;
+  start_date: string;
+  end_date: string;
+}
 
 export interface NewClient {
   name: string;
@@ -42,7 +53,62 @@ const emptyNew: NewClient = {
   phone: "", referral: "", notes: "",
 };
 
-export function ClientIntake({ onChange }: { onChange: (v: IntakeValue) => void }) {
+export function ClientIntake({
+  onChange,
+  initial = null,
+}: {
+  onChange: (v: IntakeValue) => void;
+  initial?: EditIntakeInitial | null;
+}) {
+  if (initial) return <EditIntake initial={initial} onChange={onChange} />;
+  return <NewOrExistingIntake onChange={onChange} />;
+}
+
+/** Compact intake shown when editing an existing itinerary: the project & client
+ *  are fixed; only the title and travel dates are editable. */
+function EditIntake({
+  initial,
+  onChange,
+}: {
+  initial: EditIntakeInitial;
+  onChange: (v: IntakeValue) => void;
+}) {
+  const [title, setTitle] = useState(initial.title);
+  const [startDate, setStartDate] = useState(initial.start_date);
+  const [endDate, setEndDate] = useState(initial.end_date);
+
+  useEffect(() => {
+    const ready =
+      title.trim().length > 0 && !!startDate && !!endDate && endDate >= startDate;
+    onChange({
+      title: title.trim(), start_date: startDate, end_date: endDate, ready,
+      client: { kind: "existing", id: "", name: initial.clientName },
+      project: { kind: "existing", id: initial.projectId, code: initial.projectCode },
+    });
+  }, [title, startDate, endDate, initial, onChange]);
+
+  return (
+    <Card title="Client & project">
+      <div className="mb-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+        Editing an itinerary under project <b>{initial.projectCode}</b> · {initial.clientName}.
+        Changing the dates below will re-align the day rows.
+      </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Field label="Itinerary title" required>
+          <input className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} />
+        </Field>
+        <Field label="Start date" required>
+          <input type="date" className={inputCls} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+        </Field>
+        <Field label="End date" required>
+          <input type="date" className={inputCls} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+        </Field>
+      </div>
+    </Card>
+  );
+}
+
+function NewOrExistingIntake({ onChange }: { onChange: (v: IntakeValue) => void }) {
   const [mode, setMode] = useState<"search" | "new">("search");
 
   // existing-client search
@@ -57,6 +123,7 @@ export function ClientIntake({ onChange }: { onChange: (v: IntakeValue) => void 
   // project
   const [projectMode, setProjectMode] = useState<"new" | "existing">("new");
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  const [projectItineraries, setProjectItineraries] = useState<ItineraryBrief[]>([]);
   const [code, setCode] = useState("");
   const [codeStatus, setCodeStatus] = useState<"" | "checking" | "available" | "taken">("");
 
@@ -105,6 +172,18 @@ export function ClientIntake({ onChange }: { onChange: (v: IntakeValue) => void 
     setProjectMode("new");
     setSelectedProjectId("");
   }
+
+  // ---- existing project's itineraries (offer edit vs new) ----
+  useEffect(() => {
+    if (projectMode !== "existing" || !selectedProjectId) {
+      setProjectItineraries([]);
+      return;
+    }
+    fetch(`/api/v1/projects/${selectedProjectId}/itineraries`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((rows) => setProjectItineraries(rows as ItineraryBrief[]))
+      .catch(() => setProjectItineraries([]));
+  }, [projectMode, selectedProjectId]);
 
   // ---- project code availability (debounced) ----
   useEffect(() => {
@@ -257,15 +336,39 @@ export function ClientIntake({ onChange }: { onChange: (v: IntakeValue) => void 
         )}
 
         {projectMode === "existing" && selected && selected.projects.length > 0 ? (
-          <Field label="Project" required>
-            <select className={inputCls} value={selectedProjectId} onChange={(e) => setSelectedProjectId(e.target.value)}>
-              {selected.projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.code} — {p.status}
-                </option>
-              ))}
-            </select>
-          </Field>
+          <>
+            <Field label="Project" required>
+              <select className={inputCls} value={selectedProjectId} onChange={(e) => setSelectedProjectId(e.target.value)}>
+                {selected.projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.code} — {p.status}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            {projectItineraries.length > 0 && (
+              <div className="mt-2 rounded-md border border-neutral-200 bg-neutral-50 p-2 text-xs">
+                <p className="mb-1 text-neutral-500">
+                  This project already has {projectItineraries.length}{" "}
+                  itiner{projectItineraries.length === 1 ? "y" : "ies"} — edit one, or build a
+                  new one below:
+                </p>
+                <ul className="space-y-1">
+                  {projectItineraries.map((it) => (
+                    <li key={it.id} className="flex items-center justify-between gap-2">
+                      <span className="text-neutral-700">
+                        {it.title}{" "}
+                        <span className="text-neutral-400">({it.start_date} → {it.end_date})</span>
+                      </span>
+                      <Link href={`/builder?itinerary=${it.id}`} className="font-medium text-blue-600 underline hover:text-blue-800">
+                        Edit
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </>
         ) : (
           <Field label="New project code" required>
             <input

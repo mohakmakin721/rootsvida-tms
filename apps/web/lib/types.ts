@@ -268,6 +268,56 @@ export interface ItineraryBrief {
   created_at: string;
 }
 
+// Full itinerary graph (for loading into the builder to edit) — mirrors ItineraryOut.
+export interface ItinerarySegmentOut {
+  id: string;
+  label: string;
+  pax_class: PaxClass;
+  occupancy: Occupancy;
+  pax_count: number;
+  markup_rule_id: string | null;
+}
+
+export interface ItineraryComponentOut {
+  id: string;
+  kind: ComponentKind;
+  description: string | null;
+  override_amount: string | null;
+  allocation: AllocationBasis;
+  applies_to_segment_ids: string[] | null;
+  applies_to_pax_class: PaxClass | null;
+  supplier_id: string | null;
+  rate_id: string | null;
+  transport_rate_id: string | null;
+  supplier_name: string | null;
+  rate_amount: string | null;
+  rate_meal_plan: string | null;
+  rate_occupancy: string | null;
+}
+
+export interface ItineraryDayOut {
+  id: string;
+  day_number: number;
+  date: string;
+  destination_id: string | null;
+  narrative: string | null;
+  present_segment_ids: string[];
+  components: ItineraryComponentOut[];
+}
+
+export interface ItineraryDetail {
+  id: string;
+  project_id: string;
+  title: string;
+  start_date: string;
+  end_date: string;
+  version: number;
+  status: string;
+  created_at: string | null;
+  segments: ItinerarySegmentOut[];
+  days: ItineraryDayOut[];
+}
+
 // Money fields arrive as decimal strings (FastAPI serializes Decimal as a string).
 export interface QuoteLine {
   description: string;

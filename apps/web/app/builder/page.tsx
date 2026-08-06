@@ -1,15 +1,33 @@
 import Link from "next/link";
 
-import { getSupplierFacets, listMarkupRules } from "@/lib/api";
-import type { DestinationFacet, MarkupRule } from "@/lib/types";
+import {
+  getClient,
+  getItinerary,
+  getProject,
+  getSupplierFacets,
+  listMarkupRules,
+} from "@/lib/api";
+import type {
+  ClientDetail,
+  DestinationFacet,
+  ItineraryDetail,
+  MarkupRule,
+  Project,
+} from "@/lib/types";
 
-import { ItineraryBuilder } from "./itinerary-builder";
+import { type EditContext, ItineraryBuilder } from "./itinerary-builder";
 
 export const dynamic = "force-dynamic";
 
-export default async function BuildPage() {
+export default async function BuildPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ itinerary?: string }>;
+}) {
+  const { itinerary: editId } = await searchParams;
   let markupRules: MarkupRule[] = [];
   let destinations: DestinationFacet[] = [];
+  let edit: EditContext | null = null;
   let error: string | null = null;
   try {
     const [rules, facets] = await Promise.all([
@@ -18,6 +36,16 @@ export default async function BuildPage() {
     ]);
     markupRules = rules;
     destinations = facets.destinations;
+
+    if (editId) {
+      const itinerary: ItineraryDetail = await getItinerary(editId);
+      const project: Project = await getProject(itinerary.project_id);
+      let client: ClientDetail | null = null;
+      if (project.client_id) {
+        client = await getClient(project.client_id).catch(() => null);
+      }
+      edit = { itinerary, project, client };
+    }
   } catch (e) {
     error = e instanceof Error ? e.message : "Unknown error";
   }
@@ -28,11 +56,13 @@ export default async function BuildPage() {
         <Link href="/" className="text-sm text-neutral-500 hover:text-neutral-800">
           ← RootsVida TMS
         </Link>
-        <h1 className="mt-1 text-2xl font-semibold">Itinerary builder</h1>
+        <h1 className="mt-1 text-2xl font-semibold">
+          {edit ? "Edit itinerary" : "Itinerary builder"}
+        </h1>
         <p className="mt-1 text-sm text-neutral-600">
-          Enter the client &amp; trip, define traveller groups, then add the day-by-day
-          services. The sidebar prices live — every number comes from the deterministic
-          engine, never a guess.
+          {edit
+            ? `Editing “${edit.itinerary.title}” — change any input and save to update it in place.`
+            : "Enter the client & trip, define traveller groups, then add the day-by-day services. The sidebar prices live — every number comes from the deterministic engine, never a guess."}
         </p>
       </header>
 
@@ -49,6 +79,7 @@ export default async function BuildPage() {
         <ItineraryBuilder
           initialMarkupRules={markupRules}
           destinations={destinations}
+          edit={edit}
         />
       )}
     </main>

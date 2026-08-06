@@ -17,6 +17,7 @@ from datetime import date
 from decimal import Decimal
 
 from pydantic import BaseModel, Field, model_validator
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -105,7 +106,45 @@ def build_itinerary(
     )
     session.add(itinerary)
     session.flush()
+    _build_graph(session, org_id, itinerary, draft)
+    return itinerary
 
+
+def _clear_children(session: Session, itinerary_id: uuid.UUID) -> None:
+    """Remove an itinerary's segments/days/presence/components (FK-safe order)."""
+    day_ids = select(ItineraryDay.id).where(ItineraryDay.itinerary_id == itinerary_id)
+    session.execute(
+        delete(ItineraryComponent).where(ItineraryComponent.itinerary_day_id.in_(day_ids))
+    )
+    session.execute(
+        delete(DaySegmentPresence).where(DaySegmentPresence.itinerary_day_id.in_(day_ids))
+    )
+    session.execute(delete(ItineraryDay).where(ItineraryDay.itinerary_id == itinerary_id))
+    session.execute(
+        delete(TravellerSegment).where(TravellerSegment.itinerary_id == itinerary_id)
+    )
+    session.flush()
+
+
+def update_itinerary(
+    session: Session, org_id: uuid.UUID, itinerary: Itinerary, draft: ItineraryDraft
+) -> Itinerary:
+    """Replace an itinerary's content in place (same id + version). The old graph is
+    cleared and rebuilt from `draft` — used by the builder's 'edit' flow."""
+    itinerary.title = draft.title
+    itinerary.start_date = draft.start_date
+    itinerary.end_date = draft.end_date
+    if draft.generated_by is not None:
+        itinerary.generated_by = draft.generated_by
+    _clear_children(session, itinerary.id)
+    _build_graph(session, org_id, itinerary, draft)
+    return itinerary
+
+
+def _build_graph(
+    session: Session, org_id: uuid.UUID, itinerary: Itinerary, draft: ItineraryDraft
+) -> None:
+    """Create the segments, days, presence and components for `itinerary`."""
     key_to_id: dict[str, uuid.UUID] = {}
     for s in draft.segments:
         seg = TravellerSegment(
@@ -139,4 +178,3 @@ def build_itinerary(
                 rate_id=c.rate_id, transport_rate_id=c.transport_rate_id,
             ))
     session.flush()
-    return itinerary

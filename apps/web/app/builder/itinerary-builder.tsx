@@ -6,21 +6,24 @@ import Link from "next/link";
 
 import type {
   AllocationBasis,
+  ClientDetail,
   ComponentDraft,
   ComponentKind,
   DayDraft,
   DestinationFacet,
+  ItineraryDetail,
   MarkupRule,
   Occupancy,
   PaxClass,
   PreviewOut,
+  Project,
   SegmentDraft,
 } from "@/lib/types";
 
 import { Combobox } from "@/components/combobox";
 import { CURRENCIES, GST_STATES, inr } from "@/lib/constants";
 
-import { ClientIntake, type IntakeValue } from "./client-intake";
+import { ClientIntake, type EditIntakeInitial, type IntakeValue } from "./client-intake";
 import { SupplierRatePicker } from "./supplier-picker";
 import { btnDark, btnLight, Card, Empty, Field, inputCls, Req } from "./ui";
 
@@ -69,18 +72,82 @@ function datesInWindow(start: string, end: string): string[] {
 
 const TODAY = new Date().toISOString().slice(0, 10);
 
+export interface EditContext {
+  itinerary: ItineraryDetail;
+  project: Project;
+  client: ClientDetail | null;
+}
+
+/** Convert a saved itinerary into the builder's draft shapes (keyed by real ids). */
+function toDrafts(it: ItineraryDetail): { segments: SegmentDraft[]; days: DayDraft[] } {
+  const segments: SegmentDraft[] = it.segments.map((s) => ({
+    key: s.id,
+    label: s.label,
+    pax_class: s.pax_class,
+    occupancy: s.occupancy,
+    pax_count: s.pax_count,
+    markup_rule_id: s.markup_rule_id ?? "",
+  }));
+  const days: DayDraft[] = it.days.map((d) => ({
+    day_number: d.day_number,
+    date: d.date,
+    destination_id: d.destination_id,
+    present_segment_keys: d.present_segment_ids,
+    components: d.components.map((c) => {
+      const label = c.rate_id
+        ? [c.supplier_name, c.rate_meal_plan, c.rate_occupancy].filter(Boolean).join(" · ")
+        : null;
+      return {
+        kind: c.kind,
+        description: c.description ?? "",
+        override_amount: c.override_amount ?? "",
+        override_reason: "manual entry",
+        allocation: c.allocation,
+        applies_to_segment_keys: c.applies_to_segment_ids,
+        applies_to_pax_class: c.applies_to_pax_class,
+        supplier_id: c.supplier_id,
+        rate_id: c.rate_id,
+        rate_label: label,
+        rate_amount: c.rate_amount,
+      };
+    }),
+  }));
+  return { segments, days };
+}
+
 export function ItineraryBuilder({
   initialMarkupRules,
   destinations,
+  edit = null,
 }: {
   initialMarkupRules: MarkupRule[];
   destinations: DestinationFacet[];
+  edit?: EditContext | null;
 }) {
+  const editingItineraryId = edit?.itinerary.id ?? null;
+  // Memoised so their identity is stable across renders (the intake effect and the
+  // day-alignment logic depend on them — an unstable object would loop forever).
+  const initialDrafts = useMemo(() => (edit ? toDrafts(edit.itinerary) : null), [edit]);
+  const editInitial: EditIntakeInitial | null = useMemo(
+    () =>
+      edit
+        ? {
+            projectId: edit.project.id,
+            projectCode: edit.project.code,
+            clientName: edit.client?.name ?? edit.project.client_name,
+            title: edit.itinerary.title,
+            start_date: edit.itinerary.start_date,
+            end_date: edit.itinerary.end_date,
+          }
+        : null,
+    [edit],
+  );
+
   const [markupRules, setMarkupRules] = useState<MarkupRule[]>(initialMarkupRules);
   const [intake, setIntake] = useState<IntakeValue | null>(null);
   const handleIntake = useCallback((v: IntakeValue) => setIntake(v), []);
-  const [segments, setSegments] = useState<SegmentDraft[]>([]);
-  const [days, setDays] = useState<DayDraft[]>([]);
+  const [segments, setSegments] = useState<SegmentDraft[]>(initialDrafts?.segments ?? []);
+  const [days, setDays] = useState<DayDraft[]>(initialDrafts?.days ?? []);
   const [buyerStateCode, setBuyerStateCode] = useState("05");
   const [fxCurrency, setFxCurrency] = useState("USD");
   const [fxRate, setFxRate] = useState("");
@@ -409,20 +476,27 @@ export function ItineraryBuilder({
     if (!intake) return;
     setSave({ busy: true, error: null, okId: null, okProjectId: null });
     try {
-      const projectId = await resolveProjectId(intake);
-      const itRes = await fetch(`/api/v1/projects/${projectId}/itineraries`, {
-        method: "POST",
+      // Editing: replace the existing itinerary in place (PUT). Otherwise create.
+      const [url, method, projectId] = editingItineraryId
+        ? [`/api/v1/itineraries/${editingItineraryId}`, "PUT", edit!.project.id]
+        : [
+            `/api/v1/projects/${await resolveProjectId(intake)}/itineraries`,
+            "POST",
+            null as string | null,
+          ];
+      const itRes = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload.itinerary),
       });
       if (!itRes.ok) {
         const d = await itRes.json().catch(() => null);
         throw new Error(
-          typeof d?.detail === "string" ? d.detail : `Itinerary create failed (${itRes.status}).`,
+          typeof d?.detail === "string" ? d.detail : `Save failed (${itRes.status}).`,
         );
       }
       const it = await itRes.json();
-      setSave({ busy: false, error: null, okId: it.id, okProjectId: projectId });
+      setSave({ busy: false, error: null, okId: it.id, okProjectId: projectId ?? it.project_id });
     } catch (e) {
       setSave({ busy: false, error: e instanceof Error ? e.message : "Save failed.", okId: null, okProjectId: null });
     }
@@ -431,7 +505,7 @@ export function ItineraryBuilder({
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
       <div className="space-y-6">
-        <ClientIntake onChange={handleIntake} />
+        <ClientIntake onChange={handleIntake} initial={editInitial} />
 
         {/* Step 2 — traveller groups (unlocks once client & project are complete) */}
         {intakeReady ? (
@@ -501,6 +575,7 @@ export function ItineraryBuilder({
         onSave={saveItinerary}
         canSave={!!intake?.ready}
         save={save}
+        editing={!!editingItineraryId}
       />
     </div>
   );
@@ -996,6 +1071,7 @@ function Sidebar({
   onSave,
   canSave,
   save,
+  editing,
 }: {
   preview: PreviewOut | null;
   loading: boolean;
@@ -1012,6 +1088,7 @@ function Sidebar({
   onSave: () => void;
   canSave: boolean;
   save: { busy: boolean; error: string | null; okId: string | null; okProjectId: string | null };
+  editing: boolean;
 }) {
   return (
     <aside className="lg:sticky lg:top-6 h-fit space-y-3">
@@ -1099,7 +1176,7 @@ function Sidebar({
 
       <div className="rounded-lg border border-neutral-200 bg-white p-4">
         <button onClick={onSave} disabled={!ready || !canSave || save.busy} className={`${btnDark} w-full justify-center disabled:opacity-50`}>
-          {save.busy ? "Saving…" : "Save itinerary"}
+          {save.busy ? "Saving…" : editing ? "Update itinerary" : "Save itinerary"}
         </button>
         {!canSave && (
           <p className="mt-2 text-xs text-neutral-400">
@@ -1109,9 +1186,9 @@ function Sidebar({
         {save.error && <p className="mt-2 text-xs text-red-700">{save.error}</p>}
         {save.okId && save.okProjectId && (
           <div className="mt-2 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-2 text-xs text-emerald-800">
-            <p>Saved and stored under its project.</p>
+            <p>{editing ? "Itinerary updated." : "Saved and stored under its project."}</p>
             <Link href={`/projects/${save.okProjectId}`} className="mt-1 inline-block font-medium underline hover:text-emerald-900">
-              Open project &amp; create a quote →
+              Open project &amp; {editing ? "review quotes" : "create a quote"} →
             </Link>
           </div>
         )}

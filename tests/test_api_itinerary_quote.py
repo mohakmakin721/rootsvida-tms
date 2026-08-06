@@ -120,6 +120,35 @@ def test_itinerary_read_back(api: TestClient) -> None:
     assert len(it["days"][4]["present_segment_ids"]) == 2  # day 5 Delhi: foreigners only
 
 
+def test_edit_itinerary_replaces_in_place(api: TestClient) -> None:
+    itinerary_id, project_id = _setup(api)
+    original = api.get(f"/api/v1/itineraries/{itinerary_id}").json()
+    foreign = original["segments"][0]["markup_rule_id"]
+
+    # Replace the whole itinerary with a smaller one — same id, same version.
+    new_draft = {
+        "title": "Jaipur (shortened)", "start_date": "2026-07-18", "end_date": "2026-07-19",
+        "segments": [{"key": "fs", "label": "Foreign Single", "pax_class": "foreign",
+                      "occupancy": "single", "pax_count": 1, "markup_rule_id": foreign}],
+        "days": [{"day_number": 1, "date": "2026-07-18", "present_segment_keys": ["fs"],
+                  "components": [{"kind": "misc", "description": "Ticket",
+                                  "override_amount": "500", "override_reason": "manual",
+                                  "allocation": "all_pax"}]}],
+    }
+    put = api.put(f"/api/v1/itineraries/{itinerary_id}", json=new_draft)
+    assert put.status_code == 200, put.text
+    body = put.json()
+    assert body["id"] == itinerary_id
+    assert body["version"] == original["version"]  # in-place, not a new version
+    assert body["title"] == "Jaipur (shortened)"
+    assert len(body["segments"]) == 1
+    assert len(body["days"]) == 1
+
+    # The old graph is gone — only one itinerary remains on the project.
+    listed = api.get(f"/api/v1/projects/{project_id}/itineraries").json()
+    assert len(listed) == 1
+
+
 def test_list_project_itineraries(api: TestClient) -> None:
     itinerary_id, project_id = _setup(api)
     listed = api.get(f"/api/v1/projects/{project_id}/itineraries").json()

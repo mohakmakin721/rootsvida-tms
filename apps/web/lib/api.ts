@@ -2,10 +2,12 @@ import { cookies } from "next/headers";
 
 import type {
   ActivityRow,
+  ClientDetail,
   CurrentUser,
   Facets,
   Invoice,
   ItineraryBrief,
+  ItineraryDetail,
   MarkupRule,
   Milestone,
   Permission,
@@ -94,6 +96,16 @@ export function listActivity(): Promise<ActivityRow[]> {
 
 export function getProject(id: string): Promise<Project> {
   return getJSON<Project>(`/projects/${id}`);
+}
+
+/** Full itinerary graph (for loading into the builder to edit). */
+export function getItinerary(id: string): Promise<ItineraryDetail> {
+  return getJSON<ItineraryDetail>(`/itineraries/${id}`);
+}
+
+/** One client with its projects (to prefill the builder intake when editing). */
+export function getClient(id: string): Promise<ClientDetail> {
+  return getJSON<ClientDetail>(`/clients/${id}`);
 }
 
 export function listProjectItineraries(id: string): Promise<ItineraryBrief[]> {

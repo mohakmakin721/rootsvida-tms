@@ -196,12 +196,17 @@ export function ProjectWorkspace({
                       created {new Date(it.created_at).toLocaleDateString()}
                     </div>
                   </div>
-                  <button
-                    className={btnDark}
-                    onClick={() => setOpenForm(openForm === `create:${it.id}` ? null : `create:${it.id}`)}
-                  >
-                    {openForm === `create:${it.id}` ? "Cancel" : "Create quote"}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <a className={btnLight} href={`/builder?itinerary=${it.id}`} title="Open in the builder to change inputs">
+                      Edit
+                    </a>
+                    <button
+                      className={btnDark}
+                      onClick={() => setOpenForm(openForm === `create:${it.id}` ? null : `create:${it.id}`)}
+                    >
+                      {openForm === `create:${it.id}` ? "Cancel" : "Create quote"}
+                    </button>
+                  </div>
                 </div>
                 {openForm === `create:${it.id}` && (
                   <AssumptionsForm busy={busy} onSubmit={(a) => createQuote(it.id, a)} submitLabel="Price quote" />
