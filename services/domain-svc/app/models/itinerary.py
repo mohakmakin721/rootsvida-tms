@@ -67,8 +67,8 @@ class ProjectMilestone(UUIDPrimaryKeyMixin, OrgScopedMixin, TimestampMixin, Base
 
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
     kind: Mapped[str] = mapped_column(
-        Text, nullable=False, server_default="deadline"
-    )  # payment|invoice|deadline|other
+        Text, nullable=False, server_default="note"
+    )  # payment|payment_deadline|invoice|note
     title: Mapped[str] = mapped_column(Text, nullable=False)
     due_date: Mapped[date | None] = mapped_column(Date)
     amount: Mapped[float | None] = mapped_column(Numeric(14, 2))

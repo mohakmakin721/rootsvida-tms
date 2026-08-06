@@ -65,8 +65,9 @@ class ProjectOut(BaseModel):
 
 
 class MilestoneIn(BaseModel):
-    kind: str = "deadline"  # payment|invoice|deadline|other
+    kind: str = "note"  # payment|payment_deadline|invoice|note
     title: str
+    done: bool = False
     due_date: date | None = None
     amount: Decimal | None = None
     notes: str | None = None

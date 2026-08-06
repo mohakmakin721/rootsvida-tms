@@ -23,6 +23,7 @@ from app.models import (
     Itinerary,
     Organization,
     Project,
+    ProjectMilestone,
     Quote,
 )
 from app.models.enums import GstTreatment
@@ -162,6 +163,11 @@ def generate_invoice(
         org_id=org_id, invoice_id=invoice.id,
         description=f"Tour package — {itinerary.title}" if itinerary else "Tour package",
         hsn=rule.hsn, quantity=Decimal(1), taxable_value=breakdown.taxable,
+    ))
+    # Auto-track the invoice on the project timeline (a completed, dated event).
+    session.add(ProjectMilestone(
+        org_id=org_id, project_id=quote.project_id, kind="invoice",
+        title=f"Invoice {number} raised", due_date=d, amount=breakdown.total, done=True,
     ))
     session.flush()
     return invoice

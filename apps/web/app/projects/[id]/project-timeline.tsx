@@ -17,10 +17,16 @@ const STAGES: { key: string; label: string }[] = [
 
 const KIND_BADGE: Record<string, string> = {
   payment: "bg-emerald-100 text-emerald-700",
+  payment_deadline: "bg-amber-100 text-amber-800",
   invoice: "bg-blue-100 text-blue-700",
-  deadline: "bg-amber-100 text-amber-700",
   note: "bg-neutral-100 text-neutral-500",
-  other: "bg-neutral-100 text-neutral-500",
+};
+
+const KIND_LABEL: Record<string, string> = {
+  payment: "payment received",
+  payment_deadline: "payment due",
+  invoice: "invoice",
+  note: "note",
 };
 
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -68,6 +74,8 @@ export function ProjectTimeline({
         title: draft.title.trim(),
         due_date: draft.due_date || null,
         amount: draft.amount ? draft.amount : null,
+        // A recorded payment is a completed event; a deadline/note starts open.
+        done: draft.kind === "payment",
       }),
     });
     if (res.ok) {
@@ -168,20 +176,26 @@ export function ProjectTimeline({
       </div>
 
       {/* milestones */}
-      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+      <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">
         Milestones &amp; deadlines
       </h3>
+      <p className="mb-2 text-[11px] leading-snug text-neutral-400">
+        <b>Payment received</b> — money in on that date · <b>Payment due</b> — a
+        pending payment (tick when paid) · <b>Invoice</b> — added automatically when you
+        raise one · <b>Note</b> — any manual update.
+      </p>
       {milestones.length === 0 ? (
         <p className="mb-3 rounded-md border border-dashed border-neutral-200 px-3 py-2 text-xs text-neutral-400">
-          No milestones yet — add a payment, an invoice due date, or any deadline below.
+          Nothing logged yet — record a payment received, a payment due, or a note below.
+          Invoices appear here on their own when raised.
         </p>
       ) : (
         <ul className="mb-3 space-y-1.5">
           {milestones.map((m) => (
             <li key={m.id} className="flex items-center gap-3 rounded-md border border-neutral-200 px-3 py-2 text-sm">
               <input type="checkbox" checked={m.done} onChange={() => toggleDone(m)} className="h-4 w-4" />
-              <span className={`rounded px-1.5 py-0.5 text-[10px] uppercase ${KIND_BADGE[m.kind] ?? KIND_BADGE.other}`}>
-                {m.kind}
+              <span className={`rounded px-1.5 py-0.5 text-[10px] uppercase ${KIND_BADGE[m.kind] ?? KIND_BADGE.note}`}>
+                {KIND_LABEL[m.kind] ?? m.kind}
               </span>
               <span className={`flex-1 ${m.done ? "text-neutral-400 line-through" : "text-neutral-800"}`}>
                 {m.title}
@@ -202,14 +216,17 @@ export function ProjectTimeline({
       {/* add milestone */}
       <div className="flex flex-wrap items-end gap-2 rounded-md border border-neutral-200 bg-neutral-50 p-2">
         <select className={inputCls} value={draft.kind} onChange={(e) => setDraft({ ...draft, kind: e.target.value })}>
-          <option value="payment">payment</option>
-          <option value="invoice">invoice</option>
-          <option value="deadline">deadline</option>
-          <option value="note">note</option>
+          <option value="payment">Payment received</option>
+          <option value="payment_deadline">Payment due</option>
+          <option value="note">Note</option>
         </select>
         <input
           className={`${inputCls} flex-1`}
-          placeholder="Title (e.g. Deposit 25%)"
+          placeholder={
+            draft.kind === "payment" ? "e.g. Deposit received"
+              : draft.kind === "payment_deadline" ? "e.g. Balance due"
+              : "e.g. Client confirmed dates"
+          }
           value={draft.title}
           onChange={(e) => setDraft({ ...draft, title: e.target.value })}
         />

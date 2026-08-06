@@ -81,6 +81,19 @@ def test_golden_invoice_reproduced(db_session: Session) -> None:
     assert len(invoice.lines) == 1
     assert invoice.lines[0].taxable_value == Decimal("161619.05")
 
+    # The invoice is auto-tracked on the project timeline (a completed, dated event).
+    from app.models import ProjectMilestone
+    from sqlalchemy import select
+    ms = db_session.scalars(
+        select(ProjectMilestone).where(ProjectMilestone.project_id == q.project_id)
+    ).all()
+    inv_ms = [m for m in ms if m.kind == "invoice"]
+    assert len(inv_ms) == 1
+    assert inv_ms[0].done is True
+    assert inv_ms[0].due_date == _INVOICE_DAY
+    assert inv_ms[0].amount == Decimal("169700.00")
+    assert invoice.number in inv_ms[0].title
+
 
 def test_numbers_are_gapless(db_session: Session) -> None:
     org = _org(db_session)
