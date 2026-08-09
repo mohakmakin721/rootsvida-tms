@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.models import (
     Organization,
@@ -234,7 +234,7 @@ def build_report(session: Session, org_id: uuid.UUID) -> QualityReport:
     slug = session.scalar(select(Organization.slug).where(Organization.id == org_id)) or "?"
     return QualityReport(
         org_slug=slug,
-        generated_at=datetime.now(timezone.utc),
+        generated_at=datetime.now(UTC),
         staging=_staging_stats(session, org_id),
         canonical=_canonical_stats(session, org_id),
         checks=_checks(session, org_id),

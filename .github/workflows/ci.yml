@@ -33,7 +33,11 @@ jobs:
       - name: Ruff
         run: ruff check services/domain-svc ingestion tests
       - name: Mypy
-        run: mypy services/domain-svc/app
+        # Run from the package dir so mypy finds [tool.mypy] in its pyproject
+        # (strict mode + the pydantic plugin). From the repo root the config
+        # isn't discovered and pydantic models raise false positives.
+        run: mypy app pricing
+        working-directory: services/domain-svc
       - name: Apply migrations
         run: cd db && alembic upgrade head
       - name: Pytest

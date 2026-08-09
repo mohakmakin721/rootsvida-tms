@@ -105,7 +105,11 @@ def _apply(
         supplier = session.get(Supplier, row.normalized_supplier_id)
     created = supplier is None
     if supplier is None:
-        supplier = Supplier(org_id=org_id, legal_name=norm.display_name, display_name=norm.display_name)
+        supplier = Supplier(
+            org_id=org_id,
+            legal_name=norm.display_name,
+            display_name=norm.display_name,
+        )
         session.add(supplier)
 
     supplier.kind = norm.kind

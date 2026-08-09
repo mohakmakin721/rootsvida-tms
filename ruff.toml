@@ -1,0 +1,33 @@
+# Repo-root Ruff configuration.
+#
+# `services/domain-svc/pyproject.toml` has its own [tool.ruff] and stays
+# authoritative for that package (nearest config wins). This root file governs
+# the rest of the tree — `tests/` and `ingestion/` — so CI's
+#   ruff check services/domain-svc ingestion tests
+# lints everything with the SAME, explicit rule set instead of falling back to
+# Ruff's broad implicit defaults (which vary by version and were flagging
+# DTZ011/ASYNC/BLE only on the un-configured paths).
+line-length = 100
+target-version = "py312"
+
+[lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[lint.per-file-ignores]
+# Test conventions (not applied to app/ingestion code):
+#  - F401/F811: pytest fixtures are imported by name from a sibling test module
+#    and reused as test-function parameters — ruff reads that as an unused import
+#    plus a redefinition; it's the idiomatic fixture pattern, not a defect.
+#  - E501: line length is relaxed in tests (long URLs/assertions are fine).
+#  - E402: conftest bootstraps sys.path before importing pytest/SQLAlchemy.
+"tests/**" = ["F401", "F811", "E501", "E402"]
+
+[lint.flake8-bugbear]
+# Mirror the service config: FastAPI's DI idiom calls these in argument defaults.
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Path",
+    "fastapi.Body",
+    "fastapi.Header",
+]

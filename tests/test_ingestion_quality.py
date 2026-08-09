@@ -8,7 +8,7 @@ DB. A separate no-DB test covers rendering.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 
 from app.models import (
     Destination,
@@ -132,7 +132,7 @@ def test_report_checks_flag_the_right_records(db_session: Session) -> None:
 def test_render_is_ascii_and_has_headline() -> None:
     report = QualityReport(
         org_slug="acme",
-        generated_at=datetime(2026, 7, 30, 12, 0, 0, tzinfo=timezone.utc),
+        generated_at=datetime(2026, 7, 30, 12, 0, 0, tzinfo=UTC),
         staging={
             "source_documents": 1, "raw_rows": 10, "parsed": 8, "parsed_pct": 80,
             "partial": 1, "needs_review": 1, "pending": 0,
