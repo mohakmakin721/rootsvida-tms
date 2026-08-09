@@ -36,6 +36,9 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
+  // Node.js runtime (stable in Next 15.5): the Edge runtime crashes this
+  // middleware on Vercel. Requires experimental.nodeMiddleware in next.config.
+  runtime: "nodejs",
   // Run on everything except Next's static assets, the favicon, and public files
   // (images/fonts) so e.g. the logo loads on the logged-out login page.
   matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|gif|ico|webp|woff2?)).*)"],
