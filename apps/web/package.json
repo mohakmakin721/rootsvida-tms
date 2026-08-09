@@ -2,6 +2,7 @@
   "name": "rootsvida-web",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "RootsVida TMS — internal Review Queue UI (Phase 1)",
   "scripts": {
     "dev": "next dev",
