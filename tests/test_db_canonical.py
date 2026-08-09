@@ -10,15 +10,28 @@ from __future__ import annotations
 from datetime import date
 
 import pytest
-from app.models import Rate, RoomType, Supplier
+from app.config import get_settings
+from app.models import Organization, Rate, RoomType, Supplier
 from app.models.enums import MealPlan, Occupancy, RateLifecycle, SupplierKind
-from sqlalchemy import inspect, text
+from sqlalchemy import inspect, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 
 def _org_id(session: Session):
-    return session.execute(text("select id from organizations limit 1")).scalar_one()
+    """The org id, creating it if absent so the test is self-contained.
+
+    CI applies migrations but does not seed, so `organizations` is empty there;
+    locally it's seeded. Get-or-create by slug works either way (and is rolled
+    back with the test's transaction), mirroring tests/test_ingestion_migrate.py.
+    """
+    s = get_settings()
+    org = session.scalar(select(Organization).where(Organization.slug == s.rv_org_slug))
+    if org is None:
+        org = Organization(name=s.rv_org_name, slug=s.rv_org_slug)
+        session.add(org)
+        session.flush()
+    return org.id
 
 
 def _supplier(session: Session, **kw) -> Supplier:
