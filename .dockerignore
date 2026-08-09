@@ -1,0 +1,30 @@
+# Keep the backend build context small and secret-free.
+.git
+.github
+.gitignore
+
+# Frontend — not part of the backend image (deployed separately on Vercel).
+apps
+
+# Python caches / local envs
+**/__pycache__
+**/*.pyc
+.mypy_cache
+.pytest_cache
+.ruff_cache
+.hypothesis
+.venv
+venv
+
+# Local secrets — production env vars are set in the host dashboard.
+.env
+
+# Source workbooks & samples (git-ignored anyway; not needed at runtime)
+*.xlsx
+Sample_invoice.pdf
+*.png
+
+# Generated / local data
+reports
+data
+node_modules

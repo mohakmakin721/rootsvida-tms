@@ -1,0 +1,34 @@
+# ---------------------------------------------------------------------------
+# Render Blueprint — RootsVida TMS backend (FastAPI domain service).
+#
+# Free web service, Docker runtime. Point Render at this repo and it reads this
+# file. Secret env vars (marked sync:false) are entered in the Render dashboard,
+# never committed. The database is external (Neon) — set DATABASE_URL to your
+# Neon connection string (postgresql+psycopg://...?sslmode=require).
+#
+# See docs/DEPLOYMENT.md for the full walkthrough.
+# ---------------------------------------------------------------------------
+services:
+  - type: web
+    name: rootsvida-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      # --- secrets: set these in the Render dashboard ---
+      - key: DATABASE_URL          # Neon URL, scheme postgresql+psycopg://, ?sslmode=require
+        sync: false
+      - key: RV_AUTH_SECRET        # long random string (token signing)
+        sync: false
+      - key: RV_OWNER_EMAIL        # your real owner login email
+        sync: false
+      - key: RV_OWNER_PASSWORD     # a strong owner password
+        sync: false
+      # --- non-secret config ---
+      - key: APP_ENV
+        value: production
+      - key: RV_ENABLE_PGVECTOR
+        value: "false"
+      - key: RV_AUTH_TOKEN_TTL_HOURS
+        value: "12"
