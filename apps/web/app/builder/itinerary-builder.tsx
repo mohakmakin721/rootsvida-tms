@@ -140,6 +140,9 @@ export function ItineraryBuilder({
             title: edit.itinerary.title,
             start_date: edit.itinerary.start_date,
             end_date: edit.itinerary.end_date,
+            destination: edit.itinerary.destination ?? "",
+            origin: edit.itinerary.origin ?? "",
+            notes: edit.itinerary.notes ?? "",
           }
         : null,
     [edit],
@@ -308,6 +311,9 @@ export function ItineraryBuilder({
   const iTitle = intake?.title ?? "";
   const iStart = intake?.start_date ?? TODAY;
   const iEnd = intake?.end_date ?? addDays(TODAY, 3);
+  const iDestination = intake?.destination ?? "";
+  const iOrigin = intake?.origin ?? "";
+  const iNotes = intake?.notes ?? "";
 
   // ---- guided flow: Client & project → traveller groups → days ------------ //
   const intakeReady = !!intake?.ready; // client + project + title + valid dates
@@ -394,6 +400,9 @@ export function ItineraryBuilder({
         title: iTitle.trim() || "Untitled itinerary",
         start_date: iStart,
         end_date: iEnd,
+        destination: iDestination.trim() || null,
+        origin: iOrigin.trim() || null,
+        notes: iNotes.trim() || null,
         generated_by: "human",
         segments: seg,
         days: dayList,
@@ -407,7 +416,8 @@ export function ItineraryBuilder({
       margin_floor:
         marginFloor && Number(marginFloor) > 0 ? String(Number(marginFloor) / 100) : null,
     };
-  }, [segments, days, iTitle, iStart, iEnd, buyerStateCode, fxCurrency, fxRate, marginFloor]);
+  }, [segments, days, iTitle, iStart, iEnd, iDestination, iOrigin, iNotes,
+      buyerStateCode, fxCurrency, fxRate, marginFloor]);
 
   const runPreview = useCallback(async (body: unknown) => {
     setLoading(true);
@@ -568,6 +578,9 @@ export function ItineraryBuilder({
         <AiSuggestions
           defaultDays={days.length || undefined}
           defaultGroupSize={segments.reduce((n, s) => n + s.pax_count, 0) || undefined}
+          defaultDestination={iDestination}
+          defaultOrigin={iOrigin}
+          notes={iNotes}
           segments={segments.map((s) => ({
             pax_class: s.pax_class,
             occupancy: s.occupancy,

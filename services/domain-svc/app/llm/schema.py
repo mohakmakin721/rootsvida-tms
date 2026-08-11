@@ -95,4 +95,6 @@ class DraftBrief(BaseModel):
     has_foreign: bool = False
     pax_summary: str = ""
     occupancy_summary: str = ""
+    # Free-text planning notes / constraints the owner wants respected.
+    notes: str = ""
     candidates: list[DraftCandidate] = Field(default_factory=list)

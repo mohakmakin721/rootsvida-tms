@@ -311,6 +311,9 @@ export interface ItineraryDetail {
   title: string;
   start_date: string;
   end_date: string;
+  destination: string | null;
+  origin: string | null;
+  notes: string | null;
   version: number;
   status: string;
   created_at: string | null;

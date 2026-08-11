@@ -85,6 +85,11 @@ class Itinerary(UUIDPrimaryKeyMixin, OrgScopedMixin, TimestampMixin, Base):
     title: Mapped[str] = mapped_column(Text, nullable=False)
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
     end_date: Mapped[date] = mapped_column(Date, nullable=False)
+    destination: Mapped[str | None] = mapped_column(Text)
+    origin: Mapped[str | None] = mapped_column(Text)  # travellers' start point
+    # Planning notes / constraints — extra include/exclude points the owner adds;
+    # fed to the AI drafter and kept with the itinerary.
+    notes: Mapped[str | None] = mapped_column(Text)
     version: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default="draft")
     generated_by: Mapped[str | None] = mapped_column(Text)  # 'human' | 'agent:...'

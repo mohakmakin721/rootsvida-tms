@@ -171,6 +171,7 @@ def suggest(
     age_band: str | None = None,
     transport: Sequence[str] = (),
     segments: Sequence[dict[str, object]] = (),
+    notes: str | None = None,
 ) -> SuggestResult:
     """Intake → weights → ranked DB candidates → LLM draft. The heart of the panel.
 
@@ -218,6 +219,7 @@ def suggest(
         has_foreign=has_foreign,
         pax_summary=pax_summary,
         occupancy_summary=occupancy_summary,
+        notes=notes or "",
         candidates=draft_candidates,
     )
     draft = get_provider().draft(brief)

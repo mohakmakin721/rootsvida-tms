@@ -78,6 +78,7 @@ class SuggestIn(BaseModel):
     # Traveller groups from the builder — pax mix drives foreigner-aware pricing hints
     # and accommodation choice.
     segments: list[SegmentBrief] = []
+    notes: str | None = None  # planning constraints / include-exclude points
 
 
 @router.post("/intakes", response_model=IntakeOut, status_code=status.HTTP_201_CREATED)
@@ -127,4 +128,5 @@ def suggest(
         group_size=body.group_size, themes=body.themes, tier=body.tier,
         budget_inr=body.budget_inr, age_band=body.age_band, transport=body.transport,
         segments=[s.model_dump() for s in body.segments],
+        notes=body.notes,
     )

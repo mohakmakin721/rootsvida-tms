@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { AiItineraryDraft, IntakeParse, SuggestResult } from "@/lib/types";
 
@@ -26,17 +26,32 @@ function toggle(list: string[], value: string): string[] {
 export function AiSuggestions({
   defaultDays,
   defaultGroupSize,
+  defaultDestination = "",
+  defaultOrigin = "",
+  notes = "",
   segments = [],
   onApply,
 }: {
   defaultDays?: number;
   defaultGroupSize?: number;
+  defaultDestination?: string;
+  defaultOrigin?: string;
+  notes?: string;
   segments?: { pax_class: string; occupancy: string; pax_count: number }[];
   onApply: (draft: AiItineraryDraft) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [destination, setDestination] = useState("");
-  const [origin, setOrigin] = useState("");
+  const [destination, setDestination] = useState(defaultDestination);
+  const [origin, setOrigin] = useState(defaultOrigin);
+
+  // Prefill destination/origin from the intake above when it provides them (without
+  // wiping a value the user typed here directly).
+  useEffect(() => {
+    if (defaultDestination) setDestination(defaultDestination);
+  }, [defaultDestination]);
+  useEffect(() => {
+    if (defaultOrigin) setOrigin(defaultOrigin);
+  }, [defaultOrigin]);
   const [days, setDays] = useState(defaultDays && defaultDays > 0 ? String(defaultDays) : "");
   const [groupSize, setGroupSize] = useState(defaultGroupSize ? String(defaultGroupSize) : "");
   const [themes, setThemes] = useState<string[]>([]);
@@ -66,7 +81,7 @@ export function AiSuggestions({
           group_size: groupSize ? Number(groupSize) : null,
           themes, tier: tier || null, budget_inr: budget || null,
           age_band: ageBand || null, transport,
-          segments,
+          segments, notes: notes || null,
         }),
       });
       if (!res.ok) throw new Error(`Suggest failed (${res.status})`);
@@ -194,6 +209,11 @@ export function AiSuggestions({
             </div>
           </Field>
 
+          {notes.trim() && (
+            <p className="text-xs text-neutral-500">
+              Applying your planning notes: <span className="italic">“{notes.trim()}”</span>
+            </p>
+          )}
           {segments.length > 0 && (
             <p className="text-xs text-neutral-500">
               Using {segments.reduce((n, s) => n + s.pax_count, 0)} travellers from your

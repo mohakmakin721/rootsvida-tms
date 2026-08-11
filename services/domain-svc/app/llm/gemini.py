@@ -35,9 +35,15 @@ _SYSTEM = (
     "usually differ for foreign vs Indian travellers — model those with allocation "
     "'by_pax_class' and call it out in ops_notes. Pick stays that suit the occupancy "
     "mix (single/double/triple) and the tier + budget; keep an older age_band's pace "
-    "gentle. Use `origin` (the travellers' start point) to plan arrival/return "
-    "transport and transfers (e.g. flights or drive from origin, airport pickup). "
-    "Every day and choice should visibly reflect these inputs."
+    "gentle. Use `origin` (the travellers' start point) to plan the outbound and "
+    "return TRANSPORT from origin to destination (e.g. a flight or drive origin→"
+    "destination and back) plus local airport/station transfers. If the trip is "
+    "international (travellers crossing a border — e.g. foreign nationals, or origin "
+    "and destination in different countries), include a 'Visa' cost component (kind "
+    "misc, allocation per_pax_direct or by_pax_class) and note it in ops_notes. "
+    "Finally, obey the free-text `notes` (the owner's constraints / must-include / "
+    "must-exclude points) — they override defaults. Every day and choice should "
+    "visibly reflect these inputs."
 )
 
 
@@ -85,8 +91,19 @@ class GeminiProvider(LLMProvider):
 
     def draft(self, brief: DraftBrief) -> ItineraryDraft:
         prompt = (
-            "Draft an itinerary for this brief. CANDIDATES are pre-ranked by the "
-            "client's priorities — prefer the highest-scoring ones.\n\n"
-            f"{brief.model_dump_json(indent=2)}"
+            "Draft an itinerary for this brief:\n\n"
+            f"{brief.model_dump_json(indent=2)}\n\n"
+            "REQUIREMENTS — follow EVERY one:\n"
+            "1. Prefer the highest-scoring CANDIDATES for stays/experiences.\n"
+            "2. Add explicit TRANSPORT from origin to destination and back — a "
+            "transport component for the outbound leg (origin→destination) on day 1 "
+            "and the return on the final day, plus airport/station transfers.\n"
+            "3. If international (has_foreign is true, or origin and destination are in "
+            "different countries), ADD a 'Visa' cost component (kind misc) and an "
+            "ops_note about it.\n"
+            "4. OBEY the `notes` constraints EXACTLY: include everything they say to "
+            "include (e.g. a farewell dinner) and avoid everything they say to avoid.\n"
+            "5. For foreign travellers, price monument tickets and guides with "
+            "allocation 'by_pax_class'."
         )
         return ItineraryDraft.model_validate_json(self._generate(prompt, ItineraryDraft))
