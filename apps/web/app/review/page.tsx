@@ -19,12 +19,12 @@ export default async function ReviewPage() {
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-10">
-      <header className="mb-6 flex items-baseline justify-between">
+      <header className="mb-6 flex items-baseline justify-between gap-4 border-b border-neutral-200 pb-5">
         <div>
           <Link href="/" className="text-sm text-neutral-500 hover:text-neutral-800">
             ← RootsVida TMS
           </Link>
-          <h1 className="mt-1 text-2xl font-semibold">Review queue</h1>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Review queue</h1>
           <p className="mt-1 text-sm text-neutral-600">
             Candidate records awaiting a human decision. Nothing here is trusted
             until you approve it.

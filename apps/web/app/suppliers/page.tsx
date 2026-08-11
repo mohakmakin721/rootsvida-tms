@@ -22,11 +22,11 @@ export default async function SuppliersPage() {
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-10">
-      <header className="mb-6">
+      <header className="mb-6 border-b border-neutral-200 pb-5">
         <Link href="/" className="text-sm text-neutral-500 hover:text-neutral-800">
           ← RootsVida TMS
         </Link>
-        <h1 className="mt-1 text-2xl font-semibold">Vendor &amp; rate browser</h1>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Vendor &amp; rate browser</h1>
         <p className="mt-1 text-sm text-neutral-600">
           Search the vendor book and open any vendor to see its contacts, room
           types and rates. The badge shows rate freshness at a glance — commission

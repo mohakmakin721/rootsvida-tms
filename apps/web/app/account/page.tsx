@@ -13,13 +13,13 @@ export default async function AccountPage() {
       <Link href="/" className="text-sm text-neutral-500 hover:text-neutral-800">
         ← RootsVida TMS
       </Link>
-      <h1 className="mt-1 text-2xl font-semibold">Your account</h1>
+      <h1 className="mt-1 text-2xl font-semibold tracking-tight">Your account</h1>
       {me && (
         <p className="mt-1 text-sm text-neutral-600">
           {me.email} · <span className="capitalize">{me.role}</span>
         </p>
       )}
-      <div className="mt-6">
+      <div className="mt-6 border-t border-neutral-200 pt-6">
         <ChangePasswordForm />
       </div>
     </main>

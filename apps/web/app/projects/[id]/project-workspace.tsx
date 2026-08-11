@@ -156,8 +156,8 @@ export function ProjectWorkspace({
 
   return (
     <div className="mt-3">
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold">{project.code}</h1>
+      <header className="mb-6 border-b border-neutral-200 pb-5">
+        <h1 className="text-2xl font-semibold tracking-tight">{project.code}</h1>
         <p className="mt-1 text-sm text-neutral-600">
           {project.client_name}
           {project.client_country ? ` · ${project.client_country}` : ""}

@@ -28,8 +28,8 @@ export default async function UsersPage() {
       <Link href="/" className="text-sm text-neutral-500 hover:text-neutral-800">
         ← RootsVida TMS
       </Link>
-      <h1 className="mt-1 text-2xl font-semibold">Users &amp; roles</h1>
-      <p className="mt-1 text-sm text-neutral-600">
+      <h1 className="mt-1 text-2xl font-semibold tracking-tight">Users &amp; roles</h1>
+      <p className="mt-1 border-b border-neutral-200 pb-5 text-sm text-neutral-600">
         Add teammates and set their role. Create roles and choose exactly which
         permissions each one grants — who can change pricing, issue quotes, invoice,
         and see margins.
