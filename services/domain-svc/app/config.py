@@ -69,9 +69,13 @@ class Settings(BaseSettings):
     rv_owner_email: str = "owner@rootsvida.local"
     rv_owner_password: str = "change_me_owner"  # dev seed only; rotate in real use
 
-    # --- LLM (Phase 1: DORMANT — see DECISIONS.md D-0007) ---
-    anthropic_api_key: str = ""
+    # --- LLM (Phase 5). Dormant until RV_ENABLE_LLM=true AND a key is set; until
+    # then the factory returns a deterministic stub provider (no network, no spend). ---
     rv_enable_llm: bool = False
+    rv_llm_provider: Literal["stub", "gemini", "anthropic"] = "stub"
+    gemini_api_key: str = ""
+    rv_gemini_model: str = "gemini-2.5-flash"
+    anthropic_api_key: str = ""  # reserved; owner may switch from Gemini later
 
     # --- roles permitted to see commercial (commission/margin) data ---
     commercial_roles: tuple[Role, ...] = Field(
