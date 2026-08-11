@@ -19,12 +19,28 @@ from sqlalchemy import DateTime, ForeignKey, Numeric, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column
 
-from app.models.enums import RateLifecycle
+from app.models.enums import PriceStatus, RateLifecycle, RateSource
 from app.models.types import pg_enum
 
 
 class ProvenanceMixin:
     """Provenance + trust-lifecycle columns for anything quotable."""
+
+    # Pricing confidence + commercial origin (Phase 5, amends D-0001). `lifecycle`
+    # above is the data-trust pipeline; these two say whether a number is safe to
+    # quote and where it came from. Existing rows default to on_file / internal.
+    price_status: Mapped[PriceStatus] = mapped_column(
+        pg_enum(PriceStatus, "price_status"),
+        nullable=False,
+        default=PriceStatus.ON_FILE,
+        server_default=PriceStatus.ON_FILE.value,
+    )
+    rate_source: Mapped[RateSource] = mapped_column(
+        pg_enum(RateSource, "rate_source"),
+        nullable=False,
+        default=RateSource.INTERNAL,
+        server_default=RateSource.INTERNAL.value,
+    )
 
     @declared_attr
     def source_document_id(cls) -> Mapped[uuid.UUID | None]:  # noqa: N805

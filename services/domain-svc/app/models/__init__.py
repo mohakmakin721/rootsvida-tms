@@ -12,6 +12,7 @@ from app.models.activity import ActivityRate, GuideRate
 from app.models.base import Base
 from app.models.client import Client
 from app.models.destination import Destination
+from app.models.intake import ItineraryIntake
 from app.models.invoice import DocumentCounter, Invoice, InvoiceLine
 from app.models.itinerary import (
     DaySegmentPresence,
@@ -55,6 +56,7 @@ __all__ = [
     "Itinerary",
     "ItineraryComponent",
     "ItineraryDay",
+    "ItineraryIntake",
     "MarkupRule",
     "MiscCost",
     "Organization",
