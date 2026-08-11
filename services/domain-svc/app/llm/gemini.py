@@ -35,16 +35,23 @@ class GeminiProvider(LLMProvider):
     def __init__(self, api_key: str, model: str) -> None:
         self.api_key = api_key
         self.model = model
+        self._cli: Any = None
 
     def _client(self) -> Any:
-        from google import genai  # lazy: optional dependency
+        # Cache the client for the provider's lifetime. Creating it per-call without
+        # holding a reference lets it be garbage-collected/closed mid-request (the
+        # SDK's "Cannot send a request, as the client has been closed") on retries.
+        if self._cli is None:
+            from google import genai  # lazy: optional dependency
 
-        return genai.Client(api_key=self.api_key)
+            self._cli = genai.Client(api_key=self.api_key)
+        return self._cli
 
     def _generate(self, prompt: str, schema: type[Any]) -> str:
         from google.genai import types  # lazy
 
-        resp = self._client().models.generate_content(
+        client = self._client()
+        resp = client.models.generate_content(
             model=self.model,
             contents=[prompt],
             config=types.GenerateContentConfig(
