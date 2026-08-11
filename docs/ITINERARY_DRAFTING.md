@@ -1,14 +1,127 @@
-# Itinerary drafting (LLM-assisted) — spec + prompt
+# Itinerary drafting (LLM-assisted) — Phase 5 spec
+
+> **Status: in active design/build (2026-08-11), owner-approved.** Built in phases,
+> behind a feature flag (`RV_ENABLE_LLM`), verified on a Vercel preview before any
+> production change. LLM provider for the testing phase = **Google Gemini** (free
+> tier), behind a provider abstraction so Groq / paid Anthropic are a one-line swap.
+
+## 0. Goal
+
+During a client call the owner captures a structured **intake** (from the two Google
+intake forms, or typed/pasted manually). From that, a **deterministic rule engine**
+ranks candidate places / hotels / experiences by **weighted priorities**, and an
+**LLM** turns the top candidates into a RootsVida-style day-by-day draft (structure +
+prose). The draft flows into the existing **itinerary builder** — as an autofill and
+as a live **suggestions panel** ("apply all" / per-item) — and reprices on the go via
+the deterministic engine. Hotels/experiences and (optionally) internet rates are
+grounded by **RAG** over our DB + curated web content.
+
+## 1. Pricing model (amends D-0001)
+
+The founding rule D-0001 ("AI never owns money") is **amended** for Phase 5, keeping
+its audit guarantee. Every rate carries:
+
+- **status:** `estimate` (LLM/internet, unverified) → `on_file` (in our DB, may be
+  seasonal/stale) → `confirmed` (re-checked with the hotel for these dates).
+- **source:** `internal` | `internet` | `b2b` | `b2c` | `llm_estimate`.
+
+Rules:
+1. The **deterministic engine still owns all arithmetic** — rollups, GST, margin,
+   rounding. The LLM/internet only *supplies a rate input*, flagged as an estimate.
+2. The builder may use `estimate` + `on_file` for live budgeting, always **badged** so
+   soft numbers are visible.
+3. **Issuing a quote or invoice requires `confirmed` rates** — or an explicit,
+   logged owner override ("knowingly using an estimate").
+4. Internet prices → **review queue** → owner approves → stored `on_file` with the
+   right `source` (b2b/b2c/internet) and provenance.
+
+## 2. Intake template (from the client forms)
+
+Client/meta: company, contact name + designation, pronouns, industry, email, phone,
+service type. Trip brief → the drafting inputs:
+
+| Intake field | Source (form) | Drives |
+|---|---|---|
+| `destination(s)` | Place to explore | where |
+| `group_size` | No. of participants | scale + pricing basis |
+| `themes[]` | Experience checkboxes | **priority weights** |
+| `duration_days` | How many days | day count |
+| `dates` | Dates of travel | seasonality |
+| `tier` | Accommodation (hostel→luxury) | comfort weight + hotel filter |
+| `budget_inr` | Budget (INR) | budget-fit + narrows internet fetch |
+| `must_include` / `must_exclude` | Inclusions/exclusions | hard constraints |
+| `notes` | Special requests | constraints |
+| `pax_class` | Nationality | foreign/indian pricing + framing |
+| `age_band` | Age group | pace/intensity |
+| `transport[]` | Mode of travel | logistics/proximity |
+
+Intake is an **in-app form**: fill manually, or **paste the client's answers and the
+LLM parses** them into these fields for owner review. (Direct Google Forms/Sheets sync
+is an optional later add-on — needs Google API auth.)
+
+## 3. Rule engine — weighted priorities (deterministic)
+
+Eight scoring dimensions; each candidate scores 0–100 per dimension; rank by the
+weighted sum subject to hard constraints (budget ceiling, dates, group size):
+
+1. Experience-match · 2. Comfort/tier · 3. Budget-fit · 4. Pace/intensity ·
+5. Proximity/low-transit · 6. Seasonality · 7. Authenticity/local (RootsVida DNA) ·
+8. Logistics feasibility.
+
+**Weights are per-client**, derived from the intake then owner-overridable (sliders):
+themes → Experience-match weight + its internal mix; tier=Luxury → Comfort↑/Budget↓;
+tight `budget ÷ (pax×days)` → Budget-fit↑; age 40+ → Pace↑; no flights → Proximity↑;
+normalize to 100. Deterministic + instant → this powers **live recalibration** as the
+owner edits; the LLM is called only at discrete "draft / refresh" moments.
+
+*Worked example (Rishikesh · 5 pax · 5 days · Wellness+Yoga+Festival+Trekking ·
+Homestay · ₹3,00,000 · US · 25–40 · Flights+Tempo):* ≈ Experience 35 (wellness 60 /
+trek 25 / festival 15), Authenticity 15, Budget-fit 15, Proximity 10, Comfort 10,
+Pace 8, Seasonality 7.
+
+## 4. Architecture
+
+```mermaid
+flowchart TD
+  A[Client call → INTAKE<br/>form import OR manual/paste-parse] --> B[Rule engine<br/>weighted priorities, deterministic]
+  B --> C[Candidate places / hotels / experiences<br/>ranked]
+  C --> D[LLM drafter - Gemini<br/>structured day-by-day + prose, no math]
+  R[(RAG: our DB + curated web<br/>pgvector)] --> D
+  D --> E[Itinerary builder<br/>autofill + suggestions panel apply-all]
+  E --> F[Deterministic engine<br/>/pricing/preview — owns all math]
+  E -. edits recalibrate .-> B
+  G[Internet rate fetch<br/>scoped by tier+budget] --> H[Review queue] --> I[(DB rate<br/>on_file + source b2b/b2c/internet)]
+  I --> F
+  F --> J[Quote / Invoice<br/>requires CONFIRMED rates]
+```
+
+## 5. Phasing (each behind the flag, previewed before prod)
+
+- **5a — core drafter:** intake form (manual + paste-parse) → rule engine → Gemini
+  draft → builder autofill + suggestions panel; `estimate`/`on_file`/`confirmed` rate
+  statuses. **DB candidates only.** (The bulk of the value.)
+- **5b — geospatial:** free OpenStreetMap (Nominatim geocode + OSRM/ORS routing) for
+  proximity + day-order optimization feeding the rule engine.
+- **5c — RAG:** index DB + curated web content via pgvector; ground suggestions.
+- **5d — internet rates:** fetch (tier/budget-scoped) → review → approve → provenance.
+
+### 5a milestone breakdown
+- **5a-M1** migration: rate `status` + `source` columns; `intakes` + per-project
+  `priority_weights`. (No LLM key needed.)
+- **5a-M2** rule engine (pure, deterministic) + weight-derivation from intake + tests.
+- **5a-M3** LLM provider abstraction + Gemini client + structured `ItineraryDraft`
+  (schema below); paste-parse intake. Gated by `RV_ENABLE_LLM`/`GEMINI_API_KEY`.
+- **5a-M4** builder UI: intake screen + suggestions panel (apply-all/per-item) +
+  estimate/confirmed badges.
+
+---
+
+## Appendix — original structured-draft spec + prompt (still current)
 
 How an LLM drafts a **RootsVida-style** itinerary in a **structured** shape that
 maps 1:1 to the Phase-3 tables (`itineraries` → `itinerary_days` →
 `itinerary_components`), so a draft drops straight into the itinerary builder,
 gets priced by the deterministic engine, and goes to human review.
-
-> **Status: dormant / opt-in.** No live LLM calls run today (D-0007). Anthropic is
-> the pre-approved model for this (D-0012) but any live/automated use is confirmed
-> with the owner first because it incurs spend. This document is the spec + prompt;
-> wiring it to a live model is a later, owner-gated step.
 
 ## Non-negotiable guardrails
 
