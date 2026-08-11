@@ -507,6 +507,7 @@ export interface SuggestResult {
 
 export interface IntakeParse {
   destination: string | null;
+  origin: string | null;
   group_size: number | null;
   themes: string[];
   duration_days: number | null;

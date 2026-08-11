@@ -42,6 +42,7 @@ class ItineraryIntake(
 
     # --- trip brief (rule-engine inputs) ---
     destination: Mapped[str | None] = mapped_column(Text)
+    origin: Mapped[str | None] = mapped_column(Text)  # travellers' start point
     group_size: Mapped[int | None] = mapped_column(Integer)
     themes: Mapped[list[str]] = mapped_column(
         ARRAY(Text), nullable=False, server_default="{}"

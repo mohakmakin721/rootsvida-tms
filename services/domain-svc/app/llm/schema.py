@@ -20,6 +20,7 @@ class IntakeParse(BaseModel):
     """
 
     destination: str | None = None
+    origin: str | None = None
     group_size: int | None = None
     themes: list[str] = Field(default_factory=list)
     duration_days: int | None = None
@@ -76,11 +77,22 @@ class ItineraryDraft(BaseModel):
 
 
 class DraftBrief(BaseModel):
-    """Everything the drafter needs: the trip brief + rule-engine-ranked candidates."""
+    """Everything the drafter needs: the full trip brief + rule-engine-ranked
+    candidates. The richer this is, the more closely the draft fits the client."""
 
     destination: str = ""
+    origin: str = ""  # travellers' start point — drives transport / transfers
     duration_days: int = 3
     group_size: int | None = None
     themes: list[str] = Field(default_factory=list)
     tier: str | None = None
+    budget_inr: Decimal | None = None
+    age_band: str | None = None
+    transport: list[str] = Field(default_factory=list)
+    # Traveller mix, from the builder's traveller groups. `has_foreign` matters for
+    # pricing (foreign vs Indian monument tickets / guide fees differ); `pax_summary`
+    # + `occupancy_summary` guide accommodation choice.
+    has_foreign: bool = False
+    pax_summary: str = ""
+    occupancy_summary: str = ""
     candidates: list[DraftCandidate] = Field(default_factory=list)

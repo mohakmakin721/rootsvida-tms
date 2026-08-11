@@ -136,11 +136,33 @@ def assemble_candidates(
     return [_to_candidate(s, themes) for (s, _n) in pairs[:limit]]
 
 
+def _summarize_segments(
+    segments: Sequence[dict[str, object]],
+) -> tuple[int | None, bool, str, str]:
+    """(group_size, has_foreign, pax_summary, occupancy_summary) from traveller groups."""
+    if not segments:
+        return None, False, "", ""
+    total = sum(int(str(s.get("pax_count") or 0)) for s in segments)
+    has_foreign = any(str(s.get("pax_class")).lower() == "foreign" for s in segments)
+    by_class: dict[str, int] = {}
+    by_occ: dict[str, int] = {}
+    for s in segments:
+        pc = str(s.get("pax_class") or "?")
+        oc = str(s.get("occupancy") or "?")
+        n = int(str(s.get("pax_count") or 0))
+        by_class[pc] = by_class.get(pc, 0) + n
+        by_occ[oc] = by_occ.get(oc, 0) + n
+    pax_summary = f"{total} travellers: " + ", ".join(f"{n} {k}" for k, n in by_class.items())
+    occupancy_summary = ", ".join(f"{n} {k}" for k, n in by_occ.items())
+    return total, has_foreign, pax_summary, occupancy_summary
+
+
 def suggest(
     session: Session,
     org_id: uuid.UUID,
     *,
     destination: str | None = None,
+    origin: str | None = None,
     duration_days: int | None = None,
     group_size: int | None = None,
     themes: Sequence[str] = (),
@@ -148,8 +170,15 @@ def suggest(
     budget_inr: Decimal | None = None,
     age_band: str | None = None,
     transport: Sequence[str] = (),
+    segments: Sequence[dict[str, object]] = (),
 ) -> SuggestResult:
-    """Intake → weights → ranked DB candidates → LLM draft. The heart of the panel."""
+    """Intake → weights → ranked DB candidates → LLM draft. The heart of the panel.
+
+    Traveller groups (pax class / occupancy / counts) refine the true group size, the
+    weights, and the brief the model reasons over (foreign vs Indian ticket/guide
+    rates; accommodation suited to the occupancy mix)."""
+    seg_size, has_foreign, pax_summary, occupancy_summary = _summarize_segments(segments)
+    group_size = seg_size or group_size
     signals = IntakeSignals(
         themes=list(themes), tier=tier, budget_inr=budget_inr,
         group_size=group_size, duration_days=duration_days,
@@ -178,10 +207,17 @@ def suggest(
 
     brief = DraftBrief(
         destination=destination or "",
+        origin=origin or "",
         duration_days=duration_days or 3,
         group_size=group_size,
         themes=list(themes),
         tier=tier,
+        budget_inr=budget_inr,
+        age_band=age_band,
+        transport=list(transport),
+        has_foreign=has_foreign,
+        pax_summary=pax_summary,
+        occupancy_summary=occupancy_summary,
         candidates=draft_candidates,
     )
     draft = get_provider().draft(brief)

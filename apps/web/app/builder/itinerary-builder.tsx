@@ -274,7 +274,10 @@ export function ItineraryBuilder({
     setDays((prev) =>
       prev.map((day, i) => {
         const src = draft.days[i];
-        if (!src) return day;
+        // Refresh the whole day section: days the draft covers are replaced with the
+        // AI components; days it doesn't cover are cleared, so re-running with new
+        // inputs never leaves stale suggestions behind.
+        if (!src) return { ...day, components: [] };
         const mapped: ComponentDraft[] = src.components.map((c) => ({
           kind: (KINDS as string[]).includes(c.kind) ? (c.kind as ComponentKind) : "misc",
           description: c.notes ? `${c.title} — ${c.notes}` : c.title,
@@ -290,7 +293,7 @@ export function ItineraryBuilder({
           rate_label: null,
           rate_amount: null,
         }));
-        return { ...day, components: [...day.components, ...mapped] };
+        return { ...day, components: mapped };
       }),
     );
   }
@@ -540,12 +543,6 @@ export function ItineraryBuilder({
       <div className="space-y-6">
         <ClientIntake onChange={handleIntake} initial={editInitial} />
 
-        <AiSuggestions
-          defaultDays={days.length || undefined}
-          defaultGroupSize={segments.reduce((n, s) => n + s.pax_count, 0) || undefined}
-          onApply={applyDraft}
-        />
-
         {/* Step 2 — traveller groups (unlocks once client & project are complete) */}
         {intakeReady ? (
           <SegmentSection
@@ -565,6 +562,19 @@ export function ItineraryBuilder({
             hint="Complete the client & project details above (client, project code, itinerary title and travel dates) to add traveller groups."
           />
         )}
+
+        {/* AI suggestions — after the groups, so the draft can use the pax mix
+            (foreign vs Indian, occupancy) the traveller groups define. */}
+        <AiSuggestions
+          defaultDays={days.length || undefined}
+          defaultGroupSize={segments.reduce((n, s) => n + s.pax_count, 0) || undefined}
+          segments={segments.map((s) => ({
+            pax_class: s.pax_class,
+            occupancy: s.occupancy,
+            pax_count: s.pax_count,
+          }))}
+          onApply={applyDraft}
+        />
 
         {/* Step 3 — days (unlocks once there's at least one valid traveller group) */}
         {!intakeReady ? (

@@ -26,14 +26,17 @@ function toggle(list: string[], value: string): string[] {
 export function AiSuggestions({
   defaultDays,
   defaultGroupSize,
+  segments = [],
   onApply,
 }: {
   defaultDays?: number;
   defaultGroupSize?: number;
+  segments?: { pax_class: string; occupancy: string; pax_count: number }[];
   onApply: (draft: AiItineraryDraft) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [destination, setDestination] = useState("");
+  const [origin, setOrigin] = useState("");
   const [days, setDays] = useState(defaultDays && defaultDays > 0 ? String(defaultDays) : "");
   const [groupSize, setGroupSize] = useState(defaultGroupSize ? String(defaultGroupSize) : "");
   const [themes, setThemes] = useState<string[]>([]);
@@ -58,10 +61,12 @@ export function AiSuggestions({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           destination: destination || null,
+          origin: origin || null,
           duration_days: days ? Number(days) : null,
           group_size: groupSize ? Number(groupSize) : null,
           themes, tier: tier || null, budget_inr: budget || null,
           age_band: ageBand || null, transport,
+          segments,
         }),
       });
       if (!res.ok) throw new Error(`Suggest failed (${res.status})`);
@@ -84,6 +89,7 @@ export function AiSuggestions({
       if (!res.ok) throw new Error(`Parse failed (${res.status})`);
       const p = (await res.json()) as IntakeParse;
       if (p.destination) setDestination(p.destination);
+      if (p.origin) setOrigin(p.origin);
       if (p.duration_days) setDays(String(p.duration_days));
       if (p.group_size) setGroupSize(String(p.group_size));
       if (p.themes.length) setThemes(p.themes);
@@ -121,7 +127,7 @@ export function AiSuggestions({
               value={paste}
               onChange={(e) => setPaste(e.target.value)}
               rows={3}
-              className="mt-1 w-full rounded-md border border-neutral-300 p-2 text-sm"
+              className="mt-1 w-full rounded-md border border-neutral-300 bg-white p-2 text-sm text-neutral-900 placeholder:text-neutral-400"
               placeholder="Paste the intake response here…"
             />
             <button
@@ -138,6 +144,10 @@ export function AiSuggestions({
             <Field label="Destination">
               <input value={destination} onChange={(e) => setDestination(e.target.value)}
                 className="input" placeholder="e.g. Rishikesh" />
+            </Field>
+            <Field label="Start point (for transport)">
+              <input value={origin} onChange={(e) => setOrigin(e.target.value)}
+                className="input" placeholder="e.g. Delhi" />
             </Field>
             <Field label="Days">
               <input value={days} onChange={(e) => setDays(e.target.value)}
@@ -183,6 +193,16 @@ export function AiSuggestions({
               ))}
             </div>
           </Field>
+
+          {segments.length > 0 && (
+            <p className="text-xs text-neutral-500">
+              Using {segments.reduce((n, s) => n + s.pax_count, 0)} travellers from your
+              groups
+              {segments.some((s) => s.pax_class === "foreign")
+                ? " — includes foreign travellers, so guide/monument costs are treated per class."
+                : "."}
+            </p>
+          )}
 
           <div className="flex items-center gap-3">
             <button
@@ -267,6 +287,11 @@ export function AiSuggestions({
           border: 1px solid rgb(212 212 212);
           padding: 0.375rem 0.5rem;
           font-size: 0.875rem;
+          background: #ffffff;
+          color: #171717;
+        }
+        .input::placeholder {
+          color: rgb(163 163 163);
         }
       `}</style>
     </section>

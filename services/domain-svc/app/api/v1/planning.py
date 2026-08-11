@@ -32,6 +32,7 @@ class IntakeIn(BaseModel):
     project_id: uuid.UUID | None = None
     client_id: uuid.UUID | None = None
     destination: str | None = None
+    origin: str | None = None
     group_size: int | None = None
     themes: list[str] = []
     duration_days: int | None = None
@@ -58,8 +59,15 @@ class ParseIn(BaseModel):
     text: str
 
 
+class SegmentBrief(BaseModel):
+    pax_class: str | None = None  # indian | foreign
+    occupancy: str | None = None  # single | double | triple | ...
+    pax_count: int = 0
+
+
 class SuggestIn(BaseModel):
     destination: str | None = None
+    origin: str | None = None  # travellers' start point (for transport)
     duration_days: int | None = None
     group_size: int | None = None
     themes: list[str] = []
@@ -67,6 +75,9 @@ class SuggestIn(BaseModel):
     budget_inr: Decimal | None = None
     age_band: str | None = None
     transport: list[str] = []
+    # Traveller groups from the builder — pax mix drives foreigner-aware pricing hints
+    # and accommodation choice.
+    segments: list[SegmentBrief] = []
 
 
 @router.post("/intakes", response_model=IntakeOut, status_code=status.HTTP_201_CREATED)
@@ -111,7 +122,9 @@ def suggest(
     """Rank DB candidates by the intake's priorities and return an itinerary draft."""
     return planning.suggest(
         session, org_id,
-        destination=body.destination, duration_days=body.duration_days,
+        destination=body.destination, origin=body.origin,
+        duration_days=body.duration_days,
         group_size=body.group_size, themes=body.themes, tier=body.tier,
         budget_inr=body.budget_inr, age_band=body.age_band, transport=body.transport,
+        segments=[s.model_dump() for s in body.segments],
     )

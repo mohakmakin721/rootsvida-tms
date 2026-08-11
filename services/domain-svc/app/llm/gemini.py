@@ -24,8 +24,20 @@ _SYSTEM = (
     "supplier_id/supplier_name from them). You may include a rough per-item "
     "estimate_amount, but treat it as an UNVERIFIED estimate — never a final price, "
     "never a total; the pricing engine owns all arithmetic. Map every paid item to a "
-    "component with the correct kind and allocation. Flag permits, seasonality, "
-    "altitude and long drives in ops_notes."
+    "component. Use ONLY these kinds: stay, transport, activity, guide, meal, "
+    "permit, misc (an airport/transfer is 'transport'). Use ONLY these allocation "
+    "values: all_pax, by_pax_class, per_segment, per_pax_direct, fixed_group. Flag "
+    "permits, seasonality, "
+    "altitude and long drives in ops_notes.\n"
+    "TAILOR TO THE FULL BRIEF: destination, duration, themes, budget_inr, tier, "
+    "age_band, transport, and the traveller mix (pax_summary, occupancy_summary, "
+    "has_foreign). When has_foreign is true, monument entry tickets and guide fees "
+    "usually differ for foreign vs Indian travellers — model those with allocation "
+    "'by_pax_class' and call it out in ops_notes. Pick stays that suit the occupancy "
+    "mix (single/double/triple) and the tier + budget; keep an older age_band's pace "
+    "gentle. Use `origin` (the travellers' start point) to plan arrival/return "
+    "transport and transfers (e.g. flights or drive from origin, airport pickup). "
+    "Every day and choice should visibly reflect these inputs."
 )
 
 
