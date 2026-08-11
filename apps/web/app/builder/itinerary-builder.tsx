@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 import type {
+  AiItineraryDraft,
   AllocationBasis,
   ClientDetail,
   ComponentDraft,
@@ -23,6 +24,7 @@ import type {
 import { Combobox } from "@/components/combobox";
 import { CURRENCIES, GST_STATES, inr } from "@/lib/constants";
 
+import { AiSuggestions } from "./ai-suggestions";
 import { ClientIntake, type EditIntakeInitial, type IntakeValue } from "./client-intake";
 import { SupplierRatePicker } from "./supplier-picker";
 import { btnDark, btnLight, Card, Empty, Field, inputCls, Req } from "./ui";
@@ -259,6 +261,37 @@ export function ItineraryBuilder({
       prev.map((d, i) =>
         i === dayIdx ? { ...d, components: d.components.filter((_, j) => j !== compIdx) } : d,
       ),
+    );
+  }
+
+  // Map an AI draft onto the existing days: append each draft day's components to
+  // the day at the same index. Estimates land as override_amount, flagged so the
+  // owner reviews/confirms before the numbers are trusted (D-0001 amendment).
+  function applyDraft(draft: AiItineraryDraft) {
+    const alloc: AllocationBasis[] = [
+      "all_pax", "by_pax_class", "per_segment", "per_pax_direct", "fixed_group",
+    ];
+    setDays((prev) =>
+      prev.map((day, i) => {
+        const src = draft.days[i];
+        if (!src) return day;
+        const mapped: ComponentDraft[] = src.components.map((c) => ({
+          kind: (KINDS as string[]).includes(c.kind) ? (c.kind as ComponentKind) : "misc",
+          description: c.notes ? `${c.title} — ${c.notes}` : c.title,
+          override_amount: c.estimate_amount ?? "",
+          override_reason: c.estimate_amount ? "AI estimate (unverified)" : "AI suggestion",
+          allocation: alloc.includes(c.allocation as AllocationBasis)
+            ? (c.allocation as AllocationBasis)
+            : "all_pax",
+          applies_to_segment_keys: null,
+          applies_to_pax_class: null,
+          supplier_id: c.supplier_id,
+          rate_id: null,
+          rate_label: null,
+          rate_amount: null,
+        }));
+        return { ...day, components: [...day.components, ...mapped] };
+      }),
     );
   }
 
@@ -506,6 +539,12 @@ export function ItineraryBuilder({
     <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
       <div className="space-y-6">
         <ClientIntake onChange={handleIntake} initial={editInitial} />
+
+        <AiSuggestions
+          defaultDays={days.length || undefined}
+          defaultGroupSize={segments.reduce((n, s) => n + s.pax_count, 0) || undefined}
+          onApply={applyDraft}
+        />
 
         {/* Step 2 — traveller groups (unlocks once client & project are complete) */}
         {intakeReady ? (

@@ -457,6 +457,68 @@ export interface DayDraft {
   components: ComponentDraft[];
 }
 
+// --- Phase 5: AI planning (POST /planning/suggest, /planning/parse) --- //
+
+export interface AiDraftComponent {
+  kind: string;
+  title: string;
+  supplier_id: string | null;
+  supplier_name: string | null;
+  allocation: string;
+  notes: string;
+  estimate_amount: string | null;
+  estimate_currency: string;
+}
+
+export interface AiDraftDay {
+  day_number: number;
+  title: string;
+  place: string;
+  narrative: string;
+  components: AiDraftComponent[];
+}
+
+export interface AiItineraryDraft {
+  title: string;
+  theme: string;
+  region: string;
+  duration_days: number;
+  duration_nights: number;
+  overview: string;
+  days: AiDraftDay[];
+  inclusions: string[];
+  exclusions: string[];
+  ops_notes: string[];
+  sources: string[];
+}
+
+export interface AiDraftCandidate {
+  id: string;
+  name: string;
+  kind: string;
+  score: number;
+}
+
+export interface SuggestResult {
+  weights: Record<string, number>;
+  candidates: AiDraftCandidate[];
+  draft: AiItineraryDraft;
+}
+
+export interface IntakeParse {
+  destination: string | null;
+  group_size: number | null;
+  themes: string[];
+  duration_days: number | null;
+  tier: string | null;
+  budget_inr: string | null;
+  nationality: string | null;
+  age_band: string | null;
+  transport: string[];
+  notes: string | null;
+  raw: string;
+}
+
 export interface SegmentPreview {
   label: string;
   pax: number;
