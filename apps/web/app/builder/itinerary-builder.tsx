@@ -142,7 +142,6 @@ export function ItineraryBuilder({
             end_date: edit.itinerary.end_date,
             destination: edit.itinerary.destination ?? "",
             origin: edit.itinerary.origin ?? "",
-            notes: edit.itinerary.notes ?? "",
           }
         : null,
     [edit],
@@ -151,6 +150,9 @@ export function ItineraryBuilder({
   const [markupRules, setMarkupRules] = useState<MarkupRule[]>(initialMarkupRules);
   const [intake, setIntake] = useState<IntakeValue | null>(null);
   const handleIntake = useCallback((v: IntakeValue) => setIntake(v), []);
+  // Planning notes / constraints: edited in the AI panel, fed to the drafter, and
+  // saved with the itinerary on create/update. Prefilled when editing.
+  const [planningNotes, setPlanningNotes] = useState(edit?.itinerary.notes ?? "");
   const [segments, setSegments] = useState<SegmentDraft[]>(initialDrafts?.segments ?? []);
   const [days, setDays] = useState<DayDraft[]>(initialDrafts?.days ?? []);
   const [buyerStateCode, setBuyerStateCode] = useState("05");
@@ -313,7 +315,6 @@ export function ItineraryBuilder({
   const iEnd = intake?.end_date ?? addDays(TODAY, 3);
   const iDestination = intake?.destination ?? "";
   const iOrigin = intake?.origin ?? "";
-  const iNotes = intake?.notes ?? "";
 
   // ---- guided flow: Client & project → traveller groups → days ------------ //
   const intakeReady = !!intake?.ready; // client + project + title + valid dates
@@ -402,7 +403,7 @@ export function ItineraryBuilder({
         end_date: iEnd,
         destination: iDestination.trim() || null,
         origin: iOrigin.trim() || null,
-        notes: iNotes.trim() || null,
+        notes: planningNotes.trim() || null,
         generated_by: "human",
         segments: seg,
         days: dayList,
@@ -416,7 +417,7 @@ export function ItineraryBuilder({
       margin_floor:
         marginFloor && Number(marginFloor) > 0 ? String(Number(marginFloor) / 100) : null,
     };
-  }, [segments, days, iTitle, iStart, iEnd, iDestination, iOrigin, iNotes,
+  }, [segments, days, iTitle, iStart, iEnd, iDestination, iOrigin, planningNotes,
       buyerStateCode, fxCurrency, fxRate, marginFloor]);
 
   const runPreview = useCallback(async (body: unknown) => {
@@ -580,7 +581,8 @@ export function ItineraryBuilder({
           defaultGroupSize={segments.reduce((n, s) => n + s.pax_count, 0) || undefined}
           defaultDestination={iDestination}
           defaultOrigin={iOrigin}
-          notes={iNotes}
+          notes={planningNotes}
+          onNotesChange={setPlanningNotes}
           segments={segments.map((s) => ({
             pax_class: s.pax_class,
             occupancy: s.occupancy,

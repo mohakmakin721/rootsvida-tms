@@ -5,7 +5,8 @@ import { useEffect, useState } from "react";
 import type { AiItineraryDraft, IntakeParse, SuggestResult } from "@/lib/types";
 
 const THEME_OPTIONS = [
-  "Wellness & De-stress", "Adventure", "Leadership Workshop", "Annual Offsite Meeting",
+  "Leisure & Sightseeing", "Family-friendly", "Wellness & De-stress", "Adventure",
+  "Honeymoon / Romantic", "Leadership Workshop", "Annual Offsite Meeting",
   "Yoga and Wellness", "Festival", "Work from Holiday Destination",
   "Trekking and Hiking", "Training Program", "Team Building",
 ];
@@ -29,6 +30,7 @@ export function AiSuggestions({
   defaultDestination = "",
   defaultOrigin = "",
   notes = "",
+  onNotesChange,
   segments = [],
   onApply,
 }: {
@@ -37,6 +39,7 @@ export function AiSuggestions({
   defaultDestination?: string;
   defaultOrigin?: string;
   notes?: string;
+  onNotesChange?: (v: string) => void;
   segments?: { pax_class: string; occupancy: string; pax_count: number }[];
   onApply: (draft: AiItineraryDraft) => void;
 }) {
@@ -209,11 +212,16 @@ export function AiSuggestions({
             </div>
           </Field>
 
-          {notes.trim() && (
-            <p className="text-xs text-neutral-500">
-              Applying your planning notes: <span className="italic">“{notes.trim()}”</span>
-            </p>
-          )}
+          <Field label="Notes / constraints for the AI (saved with the itinerary)">
+            <textarea
+              value={notes}
+              onChange={(e) => onNotesChange?.(e.target.value)}
+              rows={2}
+              className="w-full rounded-md border border-neutral-300 bg-white p-2 text-sm text-neutral-900 placeholder:text-neutral-400"
+              placeholder="Must-include / exclude / constraints — e.g. include a farewell dinner; avoid early mornings; no shopping stops"
+            />
+          </Field>
+
           {segments.length > 0 && (
             <p className="text-xs text-neutral-500">
               Using {segments.reduce((n, s) => n + s.pax_count, 0)} travellers from your

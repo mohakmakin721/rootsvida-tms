@@ -32,7 +32,9 @@ def get_provider(settings: Settings | None = None) -> LLMProvider:
     if s.rv_enable_llm and s.rv_llm_provider == "gemini" and s.gemini_api_key:
         from app.llm.gemini import GeminiProvider
 
-        return GeminiProvider(api_key=s.gemini_api_key, model=s.rv_gemini_model)
+        return GeminiProvider(
+            api_key=s.gemini_api_key, model=s.rv_gemini_model, review=s.rv_llm_review
+        )
     return StubProvider()
 
 

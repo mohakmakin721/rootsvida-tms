@@ -75,6 +75,9 @@ class Settings(BaseSettings):
     rv_llm_provider: Literal["stub", "gemini", "anthropic"] = "stub"
     gemini_api_key: str = ""
     rv_gemini_model: str = "gemini-flash-latest"  # always-current alias; override in env
+    # Second "review & repair" pass on each draft (better adherence/realism, but
+    # doubles LLM calls). On by default; set false to conserve free-tier quota.
+    rv_llm_review: bool = True
     anthropic_api_key: str = ""  # reserved; owner may switch from Gemini later
 
     # --- roles permitted to see commercial (commission/margin) data ---

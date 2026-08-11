@@ -17,7 +17,6 @@ export interface EditIntakeInitial {
   end_date: string;
   destination?: string;
   origin?: string;
-  notes?: string;
 }
 
 export interface NewClient {
@@ -37,7 +36,6 @@ export interface IntakeValue {
   end_date: string;
   destination: string;
   origin: string;
-  notes: string;
   ready: boolean;
   client:
     | { kind: "existing"; id: string; name: string }
@@ -82,19 +80,18 @@ function EditIntake({
   const [endDate, setEndDate] = useState(initial.end_date);
   const [destination, setDestination] = useState(initial.destination ?? "");
   const [origin, setOrigin] = useState(initial.origin ?? "");
-  const [notes, setNotes] = useState(initial.notes ?? "");
 
   useEffect(() => {
     const ready =
       title.trim().length > 0 && !!startDate && !!endDate && endDate >= startDate;
     onChange({
       title: title.trim(), start_date: startDate, end_date: endDate,
-      destination: destination.trim(), origin: origin.trim(), notes,
+      destination: destination.trim(), origin: origin.trim(),
       ready,
       client: { kind: "existing", id: "", name: initial.clientName },
       project: { kind: "existing", id: initial.projectId, code: initial.projectCode },
     });
-  }, [title, startDate, endDate, destination, origin, notes, initial, onChange]);
+  }, [title, startDate, endDate, destination, origin, initial, onChange]);
 
   return (
     <Card title="Client & project">
@@ -117,12 +114,6 @@ function EditIntake({
         </Field>
         <Field label="Start point (origin)">
           <input className={inputCls} value={origin} onChange={(e) => setOrigin(e.target.value)} placeholder="e.g. Delhi" />
-        </Field>
-      </div>
-      <div className="mt-3">
-        <Field label="Planning notes / constraints (used by AI, saved with the itinerary)">
-          <textarea className={inputCls} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)}
-            placeholder="e.g. include a farewell dinner; avoid long drives; one flex day" />
         </Field>
       </div>
     </Card>
@@ -155,7 +146,6 @@ function NewOrExistingIntake({ onChange }: { onChange: (v: IntakeValue) => void 
   const [endDate, setEndDate] = useState(addDays(TODAY, 3));
   const [destination, setDestination] = useState("");
   const [origin, setOrigin] = useState("");
-  const [notes, setNotes] = useState("");
 
   // ---- client search (debounced typeahead) ----
   useEffect(() => {
@@ -258,11 +248,11 @@ function NewOrExistingIntake({ onChange }: { onChange: (v: IntakeValue) => void 
 
     onChange({
       title: title.trim(), start_date: startDate, end_date: endDate,
-      destination: destination.trim(), origin: origin.trim(), notes,
+      destination: destination.trim(), origin: origin.trim(),
       ready, client, project,
     });
   }, [mode, selected, newClient, projectMode, selectedProjectId, code, codeStatus,
-      title, startDate, endDate, destination, origin, notes, onChange]);
+      title, startDate, endDate, destination, origin, onChange]);
 
   const info = (
     <>
@@ -445,12 +435,6 @@ function NewOrExistingIntake({ onChange }: { onChange: (v: IntakeValue) => void 
         </Field>
         <Field label="Start point (origin)">
           <input className={inputCls} placeholder="e.g. Delhi" value={origin} onChange={(e) => setOrigin(e.target.value)} />
-        </Field>
-      </div>
-      <div className="mt-3">
-        <Field label="Planning notes / constraints (used by AI, saved with the itinerary)">
-          <textarea className={inputCls} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)}
-            placeholder="e.g. include a farewell dinner; avoid long drives; one flex day" />
         </Field>
       </div>
     </Card>

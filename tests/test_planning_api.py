@@ -20,7 +20,14 @@ from sqlalchemy.orm import Session
 
 
 @pytest.fixture
-def api(db_session: Session) -> Iterator[TestClient]:
+def api(db_session: Session, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
+    # Force the deterministic stub so the suggest test never calls a live LLM (would
+    # be non-deterministic and quota-limited when a key is set in a local .env).
+    from app.llm import StubProvider
+    stub = lambda *a, **k: StubProvider()  # noqa: E731
+    monkeypatch.setattr("app.services.planning.get_provider", stub)
+    monkeypatch.setattr("app.api.v1.planning.get_provider", stub)
+
     org = Organization(name="Plan QA", slug=f"pl-{uuid.uuid4().hex[:8]}",
                        gst_state_code="05", gst_state_name="Uttarakhand")
     db_session.add(org)

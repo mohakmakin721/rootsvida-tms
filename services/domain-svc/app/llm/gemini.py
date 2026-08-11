@@ -50,9 +50,10 @@ _SYSTEM = (
 class GeminiProvider(LLMProvider):
     name = "gemini"
 
-    def __init__(self, api_key: str, model: str) -> None:
+    def __init__(self, api_key: str, model: str, review: bool = True) -> None:
         self.api_key = api_key
         self.model = model
+        self.review = review
         self._cli: Any = None
 
     def _client(self) -> Any:
@@ -95,15 +96,45 @@ class GeminiProvider(LLMProvider):
             f"{brief.model_dump_json(indent=2)}\n\n"
             "REQUIREMENTS — follow EVERY one:\n"
             "1. Prefer the highest-scoring CANDIDATES for stays/experiences.\n"
-            "2. Add explicit TRANSPORT from origin to destination and back — a "
-            "transport component for the outbound leg (origin→destination) on day 1 "
-            "and the return on the final day, plus airport/station transfers.\n"
+            "2. Include the MAIN long-haul travel between the origin CITY and the "
+            "destination CITY as transport components: the outbound leg (e.g. a flight "
+            "Delhi→Paris) on day 1 and the return (Paris→Delhi) on the final day — "
+            "prefer a sensible balance of direct and affordable — IN ADDITION to local "
+            "airport/station transfers and any inter-city legs within the trip.\n"
             "3. If international (has_foreign is true, or origin and destination are in "
             "different countries), ADD a 'Visa' cost component (kind misc) and an "
             "ops_note about it.\n"
             "4. OBEY the `notes` constraints EXACTLY: include everything they say to "
             "include (e.g. a farewell dinner) and avoid everything they say to avoid.\n"
             "5. For foreign travellers, price monument tickets and guides with "
-            "allocation 'by_pax_class'."
+            "allocation 'by_pax_class'.\n"
+            "6. REALITY CHECK before you answer: every estimate_amount must be a "
+            "realistic current market price for that item at the destination and tier, "
+            "in INR; the day-by-day sequence must be logistically feasible (sensible "
+            "travel times and opening hours, nothing physically impossible); and the "
+            "whole plan must reflect the priority weights. Silently fix anything "
+            "unrealistic before returning."
+        )
+        initial = ItineraryDraft.model_validate_json(self._generate(prompt, ItineraryDraft))
+        return self._review(brief, initial) if self.review else initial
+
+    def _review(self, brief: DraftBrief, draft: ItineraryDraft) -> ItineraryDraft:
+        """Second pass: the model critiques its own draft against the brief and fixes
+        gaps a one-shot flash model tends to miss (long-haul flights, must-includes,
+        unrealistic prices). Returns a corrected ItineraryDraft (unchanged if fine)."""
+        prompt = (
+            "Review this DRAFT itinerary against the BRIEF and fix EVERY issue, then "
+            "return the corrected ItineraryDraft (same schema):\n"
+            "- Missing long-haul transport between the origin and destination cities: "
+            "add the outbound flight (origin→destination) on day 1 and the return on "
+            "the last day if absent.\n"
+            "- Any must-include in `notes` that is missing → add it; any must-exclude "
+            "still present → remove it.\n"
+            "- A missing 'Visa' component when the trip is international → add it.\n"
+            "- Unrealistic estimate_amount values → correct to realistic INR market "
+            "prices; infeasible travel times/sequencing → fix.\n"
+            "If the draft is already correct, return it unchanged.\n\n"
+            f"BRIEF:\n{brief.model_dump_json(indent=2)}\n\n"
+            f"DRAFT:\n{draft.model_dump_json(indent=2)}"
         )
         return ItineraryDraft.model_validate_json(self._generate(prompt, ItineraryDraft))
