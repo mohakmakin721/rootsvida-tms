@@ -506,6 +506,9 @@ export interface SuggestResult {
   weights: Record<string, number>;
   candidates: AiDraftCandidate[];
   draft: AiItineraryDraft;
+  // Deterministic per-day category check: what was auto-added / flagged after the
+  // LLM returned (missing stays/meals/transport/permits, main legs, soft gaps).
+  warnings: string[];
 }
 
 export interface IntakeParse {

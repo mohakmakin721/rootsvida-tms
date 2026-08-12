@@ -245,6 +245,18 @@ export function AiSuggestions({
 
           {result && (
             <div className="space-y-4 rounded-md border border-neutral-200 bg-white p-4">
+              {/* category-check warnings — what the deterministic net auto-added/flagged */}
+              {result.warnings.length > 0 && (
+                <div className="rounded-md border border-amber-300 bg-amber-50 p-3">
+                  <p className="text-xs font-semibold text-amber-900">
+                    ⚠ Auto-filled to complete every day — please review &amp; confirm rates
+                  </p>
+                  <ul className="mt-1.5 list-disc space-y-0.5 pl-5 text-xs text-amber-800">
+                    {result.warnings.map((w, i) => <li key={i}>{w}</li>)}
+                  </ul>
+                </div>
+              )}
+
               {/* weights */}
               <div>
                 <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
@@ -294,6 +306,33 @@ export function AiSuggestions({
                   <ul className="mt-3 list-disc pl-5 text-xs text-neutral-500">
                     {result.draft.ops_notes.map((n, i) => <li key={i}>{n}</li>)}
                   </ul>
+                )}
+                {result.draft.sources.length > 0 && (
+                  <div className="mt-3 border-t border-neutral-100 pt-2">
+                    <p className="text-xs font-medium text-neutral-500">
+                      🔎 Live web sources (estimates only — verify before quoting)
+                    </p>
+                    <ul className="mt-1 space-y-0.5 text-xs">
+                      {result.draft.sources.map((s, i) => {
+                        const href = /^https?:\/\//i.test(s) ? s : null;
+                        let host = s;
+                        if (href) {
+                          try { host = new URL(s).hostname.replace(/^www\./, ""); }
+                          catch { host = s; }
+                        }
+                        return (
+                          <li key={i} className="truncate">
+                            {href ? (
+                              <a href={href} target="_blank" rel="noopener noreferrer"
+                                className="text-indigo-600 hover:underline">{host}</a>
+                            ) : (
+                              <span className="text-neutral-500">{s}</span>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
                 )}
               </div>
 
