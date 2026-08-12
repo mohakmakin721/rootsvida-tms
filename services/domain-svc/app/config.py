@@ -69,9 +69,21 @@ class Settings(BaseSettings):
     rv_owner_email: str = "owner@rootsvida.local"
     rv_owner_password: str = "change_me_owner"  # dev seed only; rotate in real use
 
-    # --- LLM (Phase 1: DORMANT — see DECISIONS.md D-0007) ---
-    anthropic_api_key: str = ""
+    # --- LLM (Phase 5). Dormant until RV_ENABLE_LLM=true AND a key is set; until
+    # then the factory returns a deterministic stub provider (no network, no spend). ---
     rv_enable_llm: bool = False
+    rv_llm_provider: Literal["stub", "gemini", "anthropic"] = "stub"
+    gemini_api_key: str = ""
+    rv_gemini_model: str = "gemini-flash-latest"  # always-current alias; override in env
+    # Second "review & repair" pass on each draft (better adherence/realism, but
+    # doubles LLM calls). On by default; set false to conserve free-tier quota.
+    rv_llm_review: bool = True
+    # Ground drafts on live Google Search (Option A). When true, the Gemini provider
+    # runs a web-search research pass first (current fares/tickets/visa/permit costs +
+    # citation URLs) and folds those figures into the draft. Off by default: it uses
+    # more free-tier quota and its numbers are still ESTIMATES (D-0001 unchanged).
+    rv_llm_grounding: bool = False
+    anthropic_api_key: str = ""  # reserved; owner may switch from Gemini later
 
     # --- roles permitted to see commercial (commission/margin) data ---
     commercial_roles: tuple[Role, ...] = Field(

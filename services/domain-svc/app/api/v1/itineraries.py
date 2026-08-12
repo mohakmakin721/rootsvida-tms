@@ -94,6 +94,9 @@ class ItineraryOut(BaseModel):
     title: str
     start_date: date
     end_date: date
+    destination: str | None = None
+    origin: str | None = None
+    notes: str | None = None
     version: int
     status: str
     created_at: datetime | None = None
@@ -225,6 +228,8 @@ def _serialize(session: Session, itinerary: Itinerary) -> ItineraryOut:
     return ItineraryOut(
         id=itinerary.id, project_id=itinerary.project_id, title=itinerary.title,
         start_date=itinerary.start_date, end_date=itinerary.end_date,
+        destination=itinerary.destination, origin=itinerary.origin,
+        notes=itinerary.notes,
         version=itinerary.version, status=itinerary.status,
         created_at=itinerary.created_at,
         segments=[SegmentOut.model_validate(s) for s in segments], days=day_out,

@@ -7,7 +7,7 @@ API-ping endpoints work, config loads, and the ingestion CLI presents its
 
 from __future__ import annotations
 
-from app.config import get_settings
+from app.config import Settings, get_settings
 from app.main import app
 from fastapi.testclient import TestClient
 
@@ -46,8 +46,10 @@ def test_review_endpoints_registered() -> None:
 def test_settings_defaults() -> None:
     settings = get_settings()
     assert settings.rv_org_name == "Rootsvida Experiences Private Limited"
-    # Phase 1 guardrails: LLM dormant by default.
-    assert settings.rv_enable_llm is False
+    # Guardrail: the LLM is opt-in — the code default is dormant (Phase 5 enables it
+    # only via an explicit env flag). Assert the class default, not the .env-loaded
+    # value, so a machine that has enabled it locally doesn't fail this.
+    assert Settings.model_fields["rv_enable_llm"].default is False
 
 
 def test_commercial_visibility_rules() -> None:

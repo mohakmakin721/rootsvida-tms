@@ -79,6 +79,9 @@ class ItineraryDraft(BaseModel):
     title: str
     start_date: date
     end_date: date
+    destination: str | None = None
+    origin: str | None = None
+    notes: str | None = None
     generated_by: str | None = None
     segments: list[SegmentIn]
     days: list[DayIn] = []
@@ -102,6 +105,7 @@ def build_itinerary(
     itinerary = Itinerary(
         org_id=org_id, project_id=project_id, title=draft.title,
         start_date=draft.start_date, end_date=draft.end_date,
+        destination=draft.destination, origin=draft.origin, notes=draft.notes,
         generated_by=draft.generated_by,
     )
     session.add(itinerary)
@@ -134,6 +138,9 @@ def update_itinerary(
     itinerary.title = draft.title
     itinerary.start_date = draft.start_date
     itinerary.end_date = draft.end_date
+    itinerary.destination = draft.destination
+    itinerary.origin = draft.origin
+    itinerary.notes = draft.notes
     if draft.generated_by is not None:
         itinerary.generated_by = draft.generated_by
     _clear_children(session, itinerary.id)

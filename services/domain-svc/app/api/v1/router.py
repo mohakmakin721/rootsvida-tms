@@ -15,6 +15,7 @@ from app.api.v1 import (
     invoices,
     itineraries,
     markup_rules,
+    planning,
     pricing,
     projects,
     quotes,
@@ -44,3 +45,4 @@ api_router.include_router(itineraries.router)
 api_router.include_router(quotes.router)
 api_router.include_router(invoices.router)
 api_router.include_router(pricing.router)
+api_router.include_router(planning.router)

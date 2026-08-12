@@ -211,6 +211,30 @@ class GstTreatment(StrEnum):
     EXPORT = "export"
 
 
+class PriceStatus(StrEnum):
+    """Pricing confidence for using a rate (Phase 5, amends D-0001). Distinct from
+    `RateLifecycle` (data-trust pipeline): this says whether a number is safe to
+    quote. `estimate` = LLM/internet, unverified; `on_file` = in our DB but possibly
+    seasonal/stale; `confirmed` = re-checked with the vendor for these dates. Issuing
+    a quote/invoice requires `confirmed` (or an explicit, logged owner override)."""
+
+    ESTIMATE = "estimate"
+    ON_FILE = "on_file"
+    CONFIRMED = "confirmed"
+
+
+class RateSource(StrEnum):
+    """Commercial origin of a rate (Phase 5). `internal` = our own data/entry;
+    `internet` = fetched from the web (needs review→approval before use); `b2b` /
+    `b2c` = contracted / public rates; `llm_estimate` = a model-suggested figure."""
+
+    INTERNAL = "internal"
+    INTERNET = "internet"
+    B2B = "b2b"
+    B2C = "b2c"
+    LLM_ESTIMATE = "llm_estimate"
+
+
 # Names used for the PostgreSQL ENUM types. Referenced by models and migrations
 # so the Python enum and the DB type never drift.
 PG_ENUM_NAMES: dict[type[Enum], str] = {
@@ -232,4 +256,6 @@ PG_ENUM_NAMES: dict[type[Enum], str] = {
     GstTreatment: "gst_treatment",
     ComponentKind: "component_kind",
     MarkupBasis: "markup_basis",
+    PriceStatus: "price_status",
+    RateSource: "rate_source",
 }

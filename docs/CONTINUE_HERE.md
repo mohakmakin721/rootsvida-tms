@@ -5,9 +5,58 @@ This is a faithful development log (what was built, every commit, the commands, 
 decisions, the state) — not a verbatim message transcript. Read this top-to-bottom
 and you have everything to resume.
 
-**As of:** git HEAD `a79faf1`+ · **242 tests passing** · migrations through `0018` ·
-Phase 1 ✅ · Phase 2 ✅ · Phase 3 ✅ · Phase 4 ✅ · **Security hardening ✅** (auth +
-web login + users admin).
+**As of:** `main` = production (LIVE) · **`phase5` branch** = Phase 5a work (HEAD
+`a70f698`, 15 commits ahead) · migrations through `0021` · Phase 1–4 ✅ · Security ✅ ·
+**Deployed LIVE ✅** · **Phase 5a (AI itinerary drafter) built ✅ (on `phase5`, not merged)**.
+
+**Session 2026-08-11/12 (Phase 5a — AI itinerary drafter, on branch `phase5`):**
+See `memory/phase5-itinerary-ai.md` + `docs/ITINERARY_DRAFTING.md` for the full design.
+- **Pricing model (amends D-0001):** rates carry `price_status` (estimate/on_file/
+  confirmed) + `rate_source` (internal/internet/b2b/b2c/llm_estimate); engine still owns
+  all math; quotes/invoices need `confirmed`. (migration 0019)
+- **M1** rate columns + `itinerary_intakes` table. **M2** pure weighted rule engine
+  (`app/planning`, 8 priorities, per-client dynamic weights). **M3** LLM layer
+  (`app/llm`: provider interface, StubProvider, GeminiProvider, ItineraryDraft schema,
+  `get_provider` factory). **M4** planning service + `/api/v1/planning` (intakes, parse,
+  suggest) + builder **✨ AI suggestions panel** (weights, drafted days, apply-all).
+  **M5** feed the full intake (traveller groups pax_class/occupancy, origin). **M6**
+  destination/origin/notes first-class on the itinerary (migrations 0020, 0021),
+  create+edit. **M7** editable notes-in-panel, more experience chips, origin↔dest flight
+  legs, and a **two-pass "review & repair"** self-check (`RV_LLM_REVIEW`, default on).
+  **M8 (HEAD `a70f698`)** three-part upgrade: **(a) per-day category checklist** — the
+  Gemini prompt now walks all 7 categories (stay/meal/transport/guide/activity/permit/
+  misc) for EVERY day and prices the origin↔destination main leg (flight/train/car) on
+  day 1 + last day; **(b) deterministic validator** (`app/llm/validate.py`,
+  `enforce_day_categories`) runs AFTER the LLM as a hard net — guarantees every night a
+  stay, every day a meal + local transport, main legs present, and known-permit places
+  (Wagah/Attari, Harshil/Nelong, Gangotri, Nathu La, Nubra/Pangong, Tso Moriri) get a
+  permit; inserts NO-PRICE placeholders (D-0001) and returns `SuggestResult.warnings`;
+  **(c) Google-Search grounding, Option A** (`RV_LLM_GROUNDING`, default OFF) — a
+  `google_search` research pass gathers live costs + citation URLs and folds them into
+  the schema-constrained draft (can't combine grounding + response_schema, so research
+  is free-text injected into the prompt; URLs → `draft.sources`); best-effort, falls
+  back to ungrounded. Web panel shows an amber "auto-filled, review" warnings callout +
+  a "Live web sources" citation list. Tests: `test_planning_validate.py` (6),
+  `test_llm_grounding.py` (5); ruff + mypy clean; web `tsc` clean.
+- **LLM = Google Gemini** (free tier), `RV_GEMINI_MODEL=gemini-flash-latest` (→
+  gemini-3.6-flash, **20 free req/day**; review pass doubles calls, grounding adds a
+  3rd). Gated by `RV_ENABLE_LLM`+`RV_LLM_PROVIDER=gemini`+`GEMINI_API_KEY` (in local
+  `.env`; set on Render for prod). Optional: `RV_LLM_REVIEW` (default on),
+  `RV_LLM_GROUNDING` (default OFF — live Google Search; may need billing/grounded-query
+  quota, verify on preview). Provider abstraction → swap to Groq/paid Anthropic later.
+- **Verified live** (Docker up): migrations 0019–0021, full suite 281 passed, real Gemini
+  drafts (Rishikesh/Jaipur/Paris) with by_pax_class foreigner tickets, visa when
+  international, origin transfers, notes obeyed. Tests force the Stub (no live LLM in CI).
+- **NEXT:** push `phase5` → Vercel preview → set the 3 Gemini env vars on Render → merge
+  `phase5`→`main`. Optional: pick a stronger model / paid tier for volume + adherence.
+
+**Deployment (LIVE, free tier — see `memory/deployment-plan.md`):** Vercel (Next.js 16,
+frontend) + Render (FastAPI, Docker) + Neon (Postgres). Fixes en route: Next 15→16 +
+`proxy.ts` (Node middleware) for the Vercel edge crash; Node 22 pin; Framework Preset →
+Next.js (was the sitewide 404). Owner login seeded from `RV_OWNER_EMAIL`/`RV_OWNER_PASSWORD`.
+
+**Earlier: git HEAD `a79faf1`+ · 242 tests passing · migrations through `0018` ·
+Phase 1 ✅ · Phase 2 ✅ · Phase 3 ✅ · Phase 4 ✅ · Security hardening ✅.**
 
 **Session 2026-08-06 (owner batch #4 — projects/quotes + itinerary editing):**
 - **N1** — quote form's margin field matches the builder ("Minimum margin %",

@@ -23,7 +23,9 @@ WORKDIR /app
 # so `app`/`pricing` import from the source tree and REPO_ROOT resolves to /app
 # (parents[3] of app/config.py), matching local behaviour.
 COPY services/domain-svc services/domain-svc
-RUN pip install -e ./services/domain-svc
+# Include the [llm] extra (google-genai) so Gemini works once RV_ENABLE_LLM +
+# GEMINI_API_KEY are set; it stays dormant (stub provider) until then.
+RUN pip install -e "./services/domain-svc[llm]"
 
 # Migrations + seed live at the repo root layout the code imports expect.
 COPY db db

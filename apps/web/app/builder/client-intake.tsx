@@ -15,6 +15,8 @@ export interface EditIntakeInitial {
   title: string;
   start_date: string;
   end_date: string;
+  destination?: string;
+  origin?: string;
 }
 
 export interface NewClient {
@@ -32,6 +34,8 @@ export interface IntakeValue {
   title: string;
   start_date: string;
   end_date: string;
+  destination: string;
+  origin: string;
   ready: boolean;
   client:
     | { kind: "existing"; id: string; name: string }
@@ -74,16 +78,20 @@ function EditIntake({
   const [title, setTitle] = useState(initial.title);
   const [startDate, setStartDate] = useState(initial.start_date);
   const [endDate, setEndDate] = useState(initial.end_date);
+  const [destination, setDestination] = useState(initial.destination ?? "");
+  const [origin, setOrigin] = useState(initial.origin ?? "");
 
   useEffect(() => {
     const ready =
       title.trim().length > 0 && !!startDate && !!endDate && endDate >= startDate;
     onChange({
-      title: title.trim(), start_date: startDate, end_date: endDate, ready,
+      title: title.trim(), start_date: startDate, end_date: endDate,
+      destination: destination.trim(), origin: origin.trim(),
+      ready,
       client: { kind: "existing", id: "", name: initial.clientName },
       project: { kind: "existing", id: initial.projectId, code: initial.projectCode },
     });
-  }, [title, startDate, endDate, initial, onChange]);
+  }, [title, startDate, endDate, destination, origin, initial, onChange]);
 
   return (
     <Card title="Client & project">
@@ -100,6 +108,12 @@ function EditIntake({
         </Field>
         <Field label="End date" required>
           <input type="date" className={inputCls} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+        </Field>
+        <Field label="Destination">
+          <input className={inputCls} value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="e.g. Rishikesh" />
+        </Field>
+        <Field label="Start point (origin)">
+          <input className={inputCls} value={origin} onChange={(e) => setOrigin(e.target.value)} placeholder="e.g. Delhi" />
         </Field>
       </div>
     </Card>
@@ -130,6 +144,8 @@ function NewOrExistingIntake({ onChange }: { onChange: (v: IntakeValue) => void 
   const [title, setTitle] = useState("");
   const [startDate, setStartDate] = useState(TODAY);
   const [endDate, setEndDate] = useState(addDays(TODAY, 3));
+  const [destination, setDestination] = useState("");
+  const [origin, setOrigin] = useState("");
 
   // ---- client search (debounced typeahead) ----
   useEffect(() => {
@@ -230,8 +246,13 @@ function NewOrExistingIntake({ onChange }: { onChange: (v: IntakeValue) => void 
           }
         : { kind: "new", code: code.trim() };
 
-    onChange({ title: title.trim(), start_date: startDate, end_date: endDate, ready, client, project });
-  }, [mode, selected, newClient, projectMode, selectedProjectId, code, codeStatus, title, startDate, endDate, onChange]);
+    onChange({
+      title: title.trim(), start_date: startDate, end_date: endDate,
+      destination: destination.trim(), origin: origin.trim(),
+      ready, client, project,
+    });
+  }, [mode, selected, newClient, projectMode, selectedProjectId, code, codeStatus,
+      title, startDate, endDate, destination, origin, onChange]);
 
   const info = (
     <>
@@ -408,6 +429,12 @@ function NewOrExistingIntake({ onChange }: { onChange: (v: IntakeValue) => void 
         </Field>
         <Field label="End date" required>
           <input type="date" className={inputCls} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+        </Field>
+        <Field label="Destination">
+          <input className={inputCls} placeholder="e.g. Rishikesh" value={destination} onChange={(e) => setDestination(e.target.value)} />
+        </Field>
+        <Field label="Start point (origin)">
+          <input className={inputCls} placeholder="e.g. Delhi" value={origin} onChange={(e) => setOrigin(e.target.value)} />
         </Field>
       </div>
     </Card>
