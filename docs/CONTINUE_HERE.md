@@ -6,7 +6,7 @@ decisions, the state) — not a verbatim message transcript. Read this top-to-bo
 and you have everything to resume.
 
 **As of:** `main` = production (LIVE) · **`phase5` branch** = Phase 5a work (HEAD
-`46676f3`, 12 commits ahead) · migrations through `0021` · Phase 1–4 ✅ · Security ✅ ·
+`a70f698`, 15 commits ahead) · migrations through `0021` · Phase 1–4 ✅ · Security ✅ ·
 **Deployed LIVE ✅** · **Phase 5a (AI itinerary drafter) built ✅ (on `phase5`, not merged)**.
 
 **Session 2026-08-11/12 (Phase 5a — AI itinerary drafter, on branch `phase5`):**
@@ -23,10 +23,27 @@ See `memory/phase5-itinerary-ai.md` + `docs/ITINERARY_DRAFTING.md` for the full 
   destination/origin/notes first-class on the itinerary (migrations 0020, 0021),
   create+edit. **M7** editable notes-in-panel, more experience chips, origin↔dest flight
   legs, and a **two-pass "review & repair"** self-check (`RV_LLM_REVIEW`, default on).
+  **M8 (HEAD `a70f698`)** three-part upgrade: **(a) per-day category checklist** — the
+  Gemini prompt now walks all 7 categories (stay/meal/transport/guide/activity/permit/
+  misc) for EVERY day and prices the origin↔destination main leg (flight/train/car) on
+  day 1 + last day; **(b) deterministic validator** (`app/llm/validate.py`,
+  `enforce_day_categories`) runs AFTER the LLM as a hard net — guarantees every night a
+  stay, every day a meal + local transport, main legs present, and known-permit places
+  (Wagah/Attari, Harshil/Nelong, Gangotri, Nathu La, Nubra/Pangong, Tso Moriri) get a
+  permit; inserts NO-PRICE placeholders (D-0001) and returns `SuggestResult.warnings`;
+  **(c) Google-Search grounding, Option A** (`RV_LLM_GROUNDING`, default OFF) — a
+  `google_search` research pass gathers live costs + citation URLs and folds them into
+  the schema-constrained draft (can't combine grounding + response_schema, so research
+  is free-text injected into the prompt; URLs → `draft.sources`); best-effort, falls
+  back to ungrounded. Web panel shows an amber "auto-filled, review" warnings callout +
+  a "Live web sources" citation list. Tests: `test_planning_validate.py` (6),
+  `test_llm_grounding.py` (5); ruff + mypy clean; web `tsc` clean.
 - **LLM = Google Gemini** (free tier), `RV_GEMINI_MODEL=gemini-flash-latest` (→
-  gemini-3.6-flash, **20 free req/day**; review pass doubles calls). Gated by
-  `RV_ENABLE_LLM`+`RV_LLM_PROVIDER=gemini`+`GEMINI_API_KEY` (in local `.env`; set on
-  Render for prod). Provider abstraction → swap to Groq/paid Anthropic later.
+  gemini-3.6-flash, **20 free req/day**; review pass doubles calls, grounding adds a
+  3rd). Gated by `RV_ENABLE_LLM`+`RV_LLM_PROVIDER=gemini`+`GEMINI_API_KEY` (in local
+  `.env`; set on Render for prod). Optional: `RV_LLM_REVIEW` (default on),
+  `RV_LLM_GROUNDING` (default OFF — live Google Search; may need billing/grounded-query
+  quota, verify on preview). Provider abstraction → swap to Groq/paid Anthropic later.
 - **Verified live** (Docker up): migrations 0019–0021, full suite 281 passed, real Gemini
   drafts (Rishikesh/Jaipur/Paris) with by_pax_class foreigner tickets, visa when
   international, origin transfers, notes obeyed. Tests force the Stub (no live LLM in CI).
