@@ -19,7 +19,13 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.llm import DraftBrief, DraftCandidate, ItineraryDraft, get_provider
+from app.llm import (
+    DraftBrief,
+    DraftCandidate,
+    ItineraryDraft,
+    enforce_day_categories,
+    get_provider,
+)
 from app.models import Destination, Supplier
 from app.models.enums import SupplierKind
 from app.planning import (
@@ -41,6 +47,9 @@ class SuggestResult(BaseModel):
     weights: dict[str, float]
     candidates: list[DraftCandidate]
     draft: ItineraryDraft
+    # What the deterministic per-day category check flagged/auto-added after the LLM
+    # returned (missing stays/meals/transport/permits, main legs, soft gaps).
+    warnings: list[str] = []
 
 
 def score_supplier(
@@ -223,9 +232,13 @@ def suggest(
         candidates=draft_candidates,
     )
     draft = get_provider().draft(brief)
+    # Deterministic net: guarantee every day has its required categories (stay/meal/
+    # transport, main legs, known permits) regardless of what the LLM returned.
+    draft, warnings = enforce_day_categories(draft, brief)
 
     return SuggestResult(
         weights={p.value: w for p, w in weights.items()},
         candidates=draft_candidates,
         draft=draft,
+        warnings=warnings,
     )

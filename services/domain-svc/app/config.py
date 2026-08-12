@@ -78,6 +78,11 @@ class Settings(BaseSettings):
     # Second "review & repair" pass on each draft (better adherence/realism, but
     # doubles LLM calls). On by default; set false to conserve free-tier quota.
     rv_llm_review: bool = True
+    # Ground drafts on live Google Search (Option A). When true, the Gemini provider
+    # runs a web-search research pass first (current fares/tickets/visa/permit costs +
+    # citation URLs) and folds those figures into the draft. Off by default: it uses
+    # more free-tier quota and its numbers are still ESTIMATES (D-0001 unchanged).
+    rv_llm_grounding: bool = False
     anthropic_api_key: str = ""  # reserved; owner may switch from Gemini later
 
     # --- roles permitted to see commercial (commission/margin) data ---

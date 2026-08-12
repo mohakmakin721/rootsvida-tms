@@ -19,6 +19,7 @@ from app.llm.schema import (
     ItineraryDraft,
 )
 from app.llm.stub import StubProvider
+from app.llm.validate import enforce_day_categories
 
 if TYPE_CHECKING:
     from app.config import Settings
@@ -33,7 +34,8 @@ def get_provider(settings: Settings | None = None) -> LLMProvider:
         from app.llm.gemini import GeminiProvider
 
         return GeminiProvider(
-            api_key=s.gemini_api_key, model=s.rv_gemini_model, review=s.rv_llm_review
+            api_key=s.gemini_api_key, model=s.rv_gemini_model,
+            review=s.rv_llm_review, grounding=s.rv_llm_grounding,
         )
     return StubProvider()
 
@@ -47,5 +49,6 @@ __all__ = [
     "ItineraryDraft",
     "LLMProvider",
     "StubProvider",
+    "enforce_day_categories",
     "get_provider",
 ]
