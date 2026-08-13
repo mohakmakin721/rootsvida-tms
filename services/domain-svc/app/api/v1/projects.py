@@ -218,6 +218,45 @@ def activity_log(
     ]
 
 
+class NextCodeOut(BaseModel):
+    code: str
+
+
+def next_project_code_for(existing_codes: list[str], year: int) -> str:
+    """Pure: the next ``RV/<year>/<0001..>`` code given the codes already in use.
+    Ignores codes that don't fit the pattern (e.g. legacy 'TP-JP-01'), so mixed
+    schemes coexist and the serial simply continues past the highest RV/<year>/ one."""
+    prefix = f"RV/{year}/"
+    max_serial = 0
+    for code in existing_codes:
+        if code.startswith(prefix):
+            tail = code[len(prefix):]
+            if tail.isdigit():
+                max_serial = max(max_serial, int(tail))
+    return f"{prefix}{max_serial + 1:04d}"
+
+
+# Declared before "/{project_id}" so "/projects/next-code" isn't read as an id.
+@router.get("/next-code", response_model=NextCodeOut)
+def next_project_code(
+    session: Session = Depends(get_session),
+    org_id: uuid.UUID = Depends(current_org_id),
+) -> NextCodeOut:
+    """The next sequential project code for the current CALENDAR year, per org:
+    ``RV/<year>/<0001..>``. Distinct from invoice numbers (which key off the GST
+    financial year, e.g. RV/2026-27/0001). Returned as a suggestion the owner may
+    still edit; uniqueness is enforced at creation, so a manual override is safe."""
+    year = datetime.now(UTC).year
+    codes = list(
+        session.scalars(
+            select(Project.code).where(
+                Project.org_id == org_id, Project.code.like(f"RV/{year}/%")
+            )
+        )
+    )
+    return NextCodeOut(code=next_project_code_for(codes, year))
+
+
 @router.get("/{project_id}", response_model=ProjectOut)
 def get_project(
     project_id: uuid.UUID,

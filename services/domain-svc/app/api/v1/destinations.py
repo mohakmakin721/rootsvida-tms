@@ -9,14 +9,11 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.deps import current_org_id, require_permission
+from app.api.deps import current_org_id
 from app.db import get_session
 from app.models import Destination
-from app.security.permissions import SUPPLIERS_MANAGE
 
 router = APIRouter(prefix="/destinations", tags=["destinations"])
-
-_manage = require_permission(SUPPLIERS_MANAGE)
 
 
 class DestinationIn(BaseModel):
@@ -52,9 +49,20 @@ def create_destination(
     body: DestinationIn,
     session: Session = Depends(get_session),
     org_id: uuid.UUID = Depends(current_org_id),
-    _user: object = Depends(_manage),
 ) -> Destination:
-    dest = Destination(org_id=org_id, name=body.name.strip(),
+    # A city is innocuous reference data that itinerary-builders (incl. Sales, who
+    # hold no manage permissions) create inline from the Day rows, so this needs only
+    # authentication — not suppliers.manage. Reuse an existing city (case-insensitive)
+    # instead of piling up duplicates.
+    name = body.name.strip()
+    existing = session.scalars(
+        select(Destination).where(
+            Destination.org_id == org_id, Destination.name.ilike(name)
+        )
+    ).first()
+    if existing is not None:
+        return existing
+    dest = Destination(org_id=org_id, name=name,
                        state=(body.state or None), country=body.country or "IN")
     session.add(dest)
     session.flush()
