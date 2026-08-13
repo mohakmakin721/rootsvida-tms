@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { Combobox } from "@/components/combobox";
+import { ACCOMMODATION_TIERS } from "@/lib/constants";
 
 // Vendor kinds — 1:1 with the itinerary cost kinds (owner decision 2026-08).
 export const VENDOR_KINDS = [
@@ -211,7 +212,22 @@ export function SupplierForm({
           />
         </Field>
         <Field label="Category">
-          <input className={inputCls} placeholder="Luxury, Mid…" value={v.category} onChange={(e) => set({ category: e.target.value })} />
+          {ACCOMMODATION_KINDS.includes(v.kind) ? (
+            <>
+              <input
+                className={inputCls}
+                list="accommodation-tiers"
+                placeholder="Homestays, 3 Star, 5 Star…"
+                value={v.category}
+                onChange={(e) => set({ category: e.target.value })}
+              />
+              <datalist id="accommodation-tiers">
+                {ACCOMMODATION_TIERS.map((t) => <option key={t} value={t} />)}
+              </datalist>
+            </>
+          ) : (
+            <input className={inputCls} placeholder="Luxury, Mid…" value={v.category} onChange={(e) => set({ category: e.target.value })} />
+          )}
         </Field>
         {ACCOMMODATION_KINDS.includes(v.kind) && (
           <Field label="Property type">

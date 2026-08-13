@@ -148,6 +148,25 @@ export function ItineraryBuilder({
   );
 
   const [markupRules, setMarkupRules] = useState<MarkupRule[]>(initialMarkupRules);
+  // Local, growable copy of the city list so a city typed into a Day row (created
+  // inline below) shows up immediately without a full page reload.
+  const [destOptions, setDestOptions] = useState<DestinationFacet[]>(destinations);
+  const createDestination = useCallback(async (name: string): Promise<string | null> => {
+    const clean = name.trim();
+    if (!clean) return null;
+    // Reuse an existing city if the name already matches (case-insensitive).
+    const existing = destOptions.find((d) => d.name.trim().toLowerCase() === clean.toLowerCase());
+    if (existing) return existing.id;
+    const res = await fetch("/api/v1/destinations", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: clean, state: null }),
+    });
+    if (!res.ok) return null;
+    const d = (await res.json()) as DestinationFacet;
+    setDestOptions((prev) => (prev.some((x) => x.id === d.id) ? prev : [...prev, d]));
+    return d.id;
+  }, [destOptions]);
   const [intake, setIntake] = useState<IntakeValue | null>(null);
   const handleIntake = useCallback((v: IntakeValue) => setIntake(v), []);
   // Planning notes / constraints: edited in the AI panel, fed to the drafter, and
@@ -608,7 +627,8 @@ export function ItineraryBuilder({
           <DaysSection
             days={days}
             segments={segments}
-            destinations={destinations}
+            destinations={destOptions}
+            onCreateDestination={createDestination}
             daysInSync={daysInSync}
             expectedCount={expectedDates.length}
             travelStart={iStart}
@@ -865,6 +885,7 @@ function DaysSection({
   days,
   segments,
   destinations,
+  onCreateDestination,
   daysInSync,
   expectedCount,
   travelStart,
@@ -879,6 +900,7 @@ function DaysSection({
   days: DayDraft[];
   segments: SegmentDraft[];
   destinations: DestinationFacet[];
+  onCreateDestination: (name: string) => Promise<string | null>;
   daysInSync: boolean;
   expectedCount: number;
   travelStart: string;
@@ -917,9 +939,11 @@ function DaysSection({
                 <span className="rounded bg-neutral-100 px-2 py-1 text-xs text-neutral-600">{d.date}</span>
                 <div className="w-52">
                   <Combobox
-                    placeholder="Destination…"
+                    placeholder="Type any city…"
                     value={d.destination_id}
                     onChange={(v) => onUpdateDay(idx, { destination_id: v })}
+                    onCreate={onCreateDestination}
+                    createLabel="Add city"
                     options={destinations.map((dest) => ({
                       value: dest.id,
                       label: dest.name,

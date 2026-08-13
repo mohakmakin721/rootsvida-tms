@@ -31,3 +31,14 @@ export function inr(v: string | number): string {
   const n = typeof v === "string" ? Number(v) : v;
   return `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 }
+
+/** Accommodation tiers — shared by the AI "Accommodation" preference and the
+ *  suggested `category` values for stay vendors, so the vocabulary lines up. */
+export const ACCOMMODATION_TIERS = [
+  "Homestays",
+  "Hostels",
+  "2 Star",
+  "3 Star",
+  "5 Star",
+  "7 Star",
+] as const;

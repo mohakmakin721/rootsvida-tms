@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { ACCOMMODATION_TIERS } from "@/lib/constants";
 import type { AiItineraryDraft, IntakeParse, SuggestResult } from "@/lib/types";
 
 const THEME_OPTIONS = [
@@ -10,7 +11,7 @@ const THEME_OPTIONS = [
   "Yoga and Wellness", "Festival", "Work from Holiday Destination",
   "Trekking and Hiking", "Training Program", "Team Building",
 ];
-const TIER_OPTIONS = ["Hostels", "Homestays", "Budget Hotel", "Luxury Hotel"];
+const TIER_OPTIONS = ACCOMMODATION_TIERS;
 const AGE_OPTIONS = ["18-24", "25-40", "40 and above"];
 const TRANSPORT_OPTIONS = ["Flights", "Trains", "Car", "Tempo Traveler"];
 

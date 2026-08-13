@@ -408,7 +408,7 @@ function NewOrExistingIntake({ onChange }: { onChange: (v: IntakeValue) => void 
           <Field label="New project code" required>
             <input
               className={inputCls}
-              placeholder="e.g. TP-JP-01"
+              placeholder="e.g. RV/2026/0001"
               value={code}
               onChange={(e) => setCode(e.target.value)}
             />
