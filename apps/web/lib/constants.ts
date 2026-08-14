@@ -37,9 +37,11 @@ export function inr(v: string | number): string {
  *  up (and the vendor-browser Category filter stays clean once data is normalized). */
 export const ACCOMMODATION_TIERS = [
   "Homestays",
+  "Hostels",
   "Hotels",
   "2 Star",
   "3 Star",
   "4 Star",
   "5 Star",
+  "7 Star",
 ] as const;
