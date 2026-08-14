@@ -596,7 +596,7 @@ export function ItineraryBuilder({
         {/* AI suggestions — after the groups, so the draft can use the pax mix
             (foreign vs Indian, occupancy) the traveller groups define. */}
         <AiSuggestions
-          defaultDays={days.length || undefined}
+          defaultDays={expectedDates.length || days.length || undefined}
           defaultGroupSize={segments.reduce((n, s) => n + s.pax_count, 0) || undefined}
           defaultDestination={iDestination}
           defaultOrigin={iOrigin}
