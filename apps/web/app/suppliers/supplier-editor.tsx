@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { Combobox } from "@/components/combobox";
-import { ACCOMMODATION_TIERS } from "@/lib/constants";
+import { ACCOMMODATION_TIERS, OCCUPANCIES, OCCUPANCY_LABEL } from "@/lib/constants";
 
 // Vendor kinds — 1:1 with the itinerary cost kinds (owner decision 2026-08).
 export const VENDOR_KINDS = [
@@ -12,11 +12,9 @@ export const VENDOR_KINDS = [
 export const SUPPLIER_KINDS = VENDOR_KINDS; // back-compat alias
 export const SUPPLIER_STATUSES = ["active", "blacklisted", "contacted", "prospect"];
 export const MEAL_PLANS = ["EP", "CP", "MAP", "AP", "CPAI", "MAPAI", "APAI", "CAPAI"];
-// "single / double / triple" rooms + an extra-bed option (the bedding part).
-export const OCCUPANCIES = ["single", "double", "triple", "extra_adult"];
-export const OCCUPANCY_LABEL: Record<string, string> = {
-  single: "single", double: "double", triple: "triple", extra_adult: "extra bed",
-};
+// Room occupancy is centralised in lib/constants (single/double/triple/extra bed/twin
+// bed) so the rate browser, the Days rate picker and bulk import all agree.
+export { OCCUPANCIES, OCCUPANCY_LABEL };
 
 // Which extra rate fields a vendor kind needs (use common sense per kind):
 //  • stay  → meal plan + occupancy (bedding)

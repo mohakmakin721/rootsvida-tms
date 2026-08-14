@@ -74,6 +74,7 @@ class Occupancy(StrEnum):
     DOUBLE = "double"
     TRIPLE = "triple"
     EXTRA_ADULT = "extra_adult"
+    TWIN = "twin"
     CHILD_WB = "child_wb"  # child with bed
     CHILD_NB = "child_nb"  # child no bed
 

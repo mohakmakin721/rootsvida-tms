@@ -32,6 +32,18 @@ export function inr(v: string | number): string {
   return `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 }
 
+/** Room occupancy for stay/hotel rates — one constant shared by the Days rate picker,
+ *  the vendor & rate browser, and the bulk-import template. Values match the DB
+ *  `occupancy` enum (single|double|triple|extra_adult|twin). */
+export const OCCUPANCIES = ["single", "double", "triple", "extra_adult", "twin"] as const;
+export const OCCUPANCY_LABEL: Record<string, string> = {
+  single: "single",
+  double: "double",
+  triple: "triple",
+  extra_adult: "extra bed",
+  twin: "twin bed",
+};
+
 /** Accommodation tiers — the canonical stay `category` vocabulary, shared by the AI
  *  "Accommodation" preference and the stay-vendor Category field so everything lines
  *  up (and the vendor-browser Category filter stays clean once data is normalized). */

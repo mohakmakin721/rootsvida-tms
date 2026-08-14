@@ -59,6 +59,14 @@ def test_rate_bad_amount_and_dates() -> None:
     assert e3 and ">= 0" in e3
 
 
+def test_rate_accepts_twin_occupancy() -> None:
+    clean, err = bi.validate_rate_row({
+        "vendor_display_name": "X", "amount": "1", "occupancy": "Twin",
+        "valid_from": "2026-01-01", "valid_to": "2026-01-02",
+    })
+    assert err is None and clean is not None and clean.occupancy == "twin"
+
+
 def test_rate_accepts_datetime_and_alt_date_format() -> None:
     clean, err = bi.validate_rate_row({
         "vendor_display_name": "X", "amount": "1", "meal_plan": "map",

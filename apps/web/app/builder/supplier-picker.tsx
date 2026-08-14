@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { OCCUPANCIES, OCCUPANCY_LABEL } from "@/lib/constants";
 import type { ComponentKind, Rate, SupplierDetail, SupplierSummary } from "@/lib/types";
 
 import { btnDark, btnLight, inputCls } from "./ui";
@@ -16,10 +17,6 @@ export interface RatePick {
 // Vendor kinds are 1:1 with cost kinds — a "guide" cost only suggests guide
 // vendors, a "stay" only stay vendors, etc. (the search passes `kind` directly).
 const MEAL_PLANS = ["EP", "CP", "MAP", "AP", "CPAI", "MAPAI", "APAI", "CAPAI"];
-const OCCUPANCIES = ["single", "double", "triple", "extra_adult"];
-const OCCUPANCY_LABEL: Record<string, string> = {
-  single: "single", double: "double", triple: "triple", extra_adult: "extra bed",
-};
 const usesMealPlan = (kind: string) => kind === "stay" || kind === "meal";
 const usesOccupancy = (kind: string) => kind === "stay";
 // A guest sleeps / eats / sightsees / needs permits IN the day's city, so those

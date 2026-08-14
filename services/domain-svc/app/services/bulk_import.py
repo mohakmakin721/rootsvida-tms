@@ -222,7 +222,9 @@ def validate_rate_row(row: dict[str, object]) -> tuple[RateRow | None, str | Non
 def build_template() -> bytes:
     """A ready-to-fill .xlsx: an Instructions sheet + empty Vendors & Rates sheets."""
     from openpyxl import Workbook
-    from openpyxl.styles import Font
+    from openpyxl.styles import Alignment, Font, PatternFill
+    from openpyxl.utils import get_column_letter
+    from openpyxl.worksheet.datavalidation import DataValidation
 
     wb = Workbook()
     info = wb.active
@@ -260,15 +262,47 @@ def build_template() -> bytes:
     ]
     for r in lines:
         info.append(r)
-    info["A1"].font = Font(bold=True, size=14)
+    info["A1"].font = Font(bold=True, size=14, color="1F3864")
+    info.column_dimensions["A"].width = 24
+    info.column_dimensions["B"].width = 80
+    for row in info.iter_rows(min_row=8):
+        row[0].font = Font(bold=True)  # column names in the left column
 
-    vendors = wb.create_sheet(VENDOR_SHEET)
-    vendors.append(VENDOR_COLUMNS)
-    rates = wb.create_sheet(RATE_SHEET)
-    rates.append(RATE_COLUMNS)
-    for ws in (vendors, rates):
-        for cell in ws[1]:
-            cell.font = Font(bold=True)
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill("solid", fgColor="1F3864")
+    center = Alignment(horizontal="center")
+
+    # Per-column widths + which columns get a dropdown of allowed values.
+    vendor_widths = [12, 28, 26, 18, 14, 16, 12, 20, 14, 34]
+    rate_widths = [28, 18, 12, 12, 12, 10, 14, 14, 18, 11, 12]
+    vendor_lists = {"kind": sorted(_KINDS), "status": sorted(_STATUSES)}
+    rate_lists = {
+        "meal_plan": sorted(_MEAL_PLANS),
+        "occupancy": sorted(_OCCUPANCIES),
+        "rate_source": sorted(_RATE_SOURCES),
+    }
+
+    def _style(name: str, columns: list[str], widths: list[int],
+               dropdowns: dict[str, list[str]]) -> None:
+        ws = wb.create_sheet(name)
+        ws.append(columns)
+        for i, cell in enumerate(ws[1]):
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = center
+            ws.column_dimensions[get_column_letter(i + 1)].width = widths[i]
+        ws.freeze_panes = "A2"  # keep the header visible while scrolling
+        ws.auto_filter.ref = f"A1:{get_column_letter(len(columns))}1"
+        for col_name, allowed in dropdowns.items():
+            letter = get_column_letter(columns.index(col_name) + 1)
+            dv = DataValidation(
+                type="list", formula1='"' + ",".join(allowed) + '"', allow_blank=True
+            )
+            ws.add_data_validation(dv)
+            dv.add(f"{letter}2:{letter}1000")
+
+    _style(VENDOR_SHEET, VENDOR_COLUMNS, vendor_widths, vendor_lists)
+    _style(RATE_SHEET, RATE_COLUMNS, rate_widths, rate_lists)
 
     buf = io.BytesIO()
     wb.save(buf)

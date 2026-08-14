@@ -693,16 +693,22 @@ function BulkImport({ onDone }: { onDone: () => void }) {
     <div className="space-y-3 rounded-md border border-indigo-200 bg-indigo-50/40 p-4">
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <button className={btnLight} onClick={downloadTemplate}>⬇ Download template</button>
-        <input
-          type="file"
-          accept=".xlsx"
-          onChange={(e) => {
-            setFile(e.target.files?.[0] ?? null);
-            setPreview(null);
-            setCommitted(null);
-          }}
-          className="text-xs text-neutral-600 file:mr-2 file:rounded file:border file:border-neutral-300 file:bg-white file:px-2 file:py-1 file:text-xs"
-        />
+        <label className={`${btnLight} cursor-pointer`}>
+          ⬆ Choose file
+          <input
+            type="file"
+            accept=".xlsx"
+            className="hidden"
+            onChange={(e) => {
+              setFile(e.target.files?.[0] ?? null);
+              setPreview(null);
+              setCommitted(null);
+            }}
+          />
+        </label>
+        <span className="max-w-[16rem] truncate text-xs text-neutral-600">
+          {file ? file.name : "No file chosen"}
+        </span>
         <button className={btnLight} disabled={!file || busy} onClick={() => send(false)}>
           {busy && !committed ? "Checking…" : "Validate"}
         </button>
