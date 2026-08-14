@@ -32,13 +32,14 @@ export function inr(v: string | number): string {
   return `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 }
 
-/** Accommodation tiers — shared by the AI "Accommodation" preference and the
- *  suggested `category` values for stay vendors, so the vocabulary lines up. */
+/** Accommodation tiers — the canonical stay `category` vocabulary, shared by the AI
+ *  "Accommodation" preference and the stay-vendor Category field so everything lines
+ *  up (and the vendor-browser Category filter stays clean once data is normalized). */
 export const ACCOMMODATION_TIERS = [
   "Homestays",
-  "Hostels",
+  "Hotels",
   "2 Star",
   "3 Star",
+  "4 Star",
   "5 Star",
-  "7 Star",
 ] as const;
