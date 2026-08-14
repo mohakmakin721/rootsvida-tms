@@ -13,7 +13,16 @@ import uuid
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    Query,
+    Response,
+    UploadFile,
+    status,
+)
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -39,7 +48,7 @@ from app.models.enums import (
     TransportBasis,
 )
 from app.security.permissions import SUPPLIERS_MANAGE
-from app.services import suppliers
+from app.services import bulk_import, suppliers
 
 router = APIRouter(prefix="/suppliers", tags=["suppliers"])
 
@@ -368,6 +377,37 @@ def create_supplier(
     session.add(supplier)
     session.flush()
     return _detail(session, org_id, supplier.id)
+
+
+_XLSX_MEDIA = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+@router.get("/import/template")
+def import_template(_user: object = Depends(_manage)) -> Response:
+    """Download the blank Vendors + Rates .xlsx template to bulk-import into the book."""
+    filename = "rootsvida_vendor_import_template.xlsx"
+    return Response(
+        content=bulk_import.build_template(),
+        media_type=_XLSX_MEDIA,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/import")
+async def import_vendors(
+    file: UploadFile = File(...),
+    commit: bool = Query(
+        default=False, description="false = validate/dry-run; true = write"
+    ),
+    session: Session = Depends(get_session),
+    org_id: uuid.UUID = Depends(current_org_id),
+    _user: object = Depends(_manage),
+) -> dict[str, object]:
+    """Bulk-import vendors + rates from the filled template. Call with commit=false
+    first to preview (validate everything, persist nothing), then commit=true to
+    write. Imported vendors are 'prospect' + rates 'on_file' — reviewed later."""
+    data = await file.read()
+    return bulk_import.run_import(session, org_id, data, commit=commit).as_dict()
 
 
 @router.patch("/{supplier_id}", response_model=SupplierDetail)

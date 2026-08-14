@@ -86,6 +86,7 @@ export function SupplierBrowser({
   const [facets, setFacets] = useState<Facets>(initialFacets);
   const [allDestinations, setAllDestinations] = useState<DestOption[]>([]);
   const [adding, setAdding] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -163,11 +164,15 @@ export function SupplierBrowser({
     <div className="space-y-4">
       {canEdit && (
         <div>
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <button className={btnLight} onClick={() => setImporting((v) => !v)}>
+              {importing ? "Close import" : "⬆ Bulk import"}
+            </button>
             <button className={btnDark} onClick={() => setAdding((a) => !a)}>
               {adding ? "Cancel" : "+ Add vendor"}
             </button>
           </div>
+          {importing && <div className="mt-2"><BulkImport onDone={reload} /></div>}
           {adding && (
             <div className="mt-2">
               <SupplierForm
@@ -615,5 +620,135 @@ function Empty({ children }: { children: React.ReactNode }) {
     <p className="rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-400">
       {children}
     </p>
+  );
+}
+
+interface ImportResult {
+  committed: boolean;
+  vendors_created: number;
+  vendors_matched: number;
+  rates_created: number;
+  skipped: number;
+  error_count: number;
+  ok: boolean;
+  errors: { sheet: string; row: number; message: string }[];
+}
+
+/** Download the template, validate a filled file (dry-run), then commit. Imported
+ *  vendors land as unverified 'prospect' + rates 'on_file' for later review. */
+function BulkImport({ onDone }: { onDone: () => void }) {
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<ImportResult | null>(null);
+  const [committed, setCommitted] = useState<ImportResult | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function downloadTemplate() {
+    setError(null);
+    try {
+      const res = await fetch("/api/v1/suppliers/import/template");
+      if (!res.ok) throw new Error();
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "rootsvida_vendor_import_template.xlsx";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setError("Could not download the template.");
+    }
+  }
+
+  async function send(commit: boolean) {
+    if (!file) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`/api/v1/suppliers/import?commit=${commit}`, {
+        method: "POST",
+        body: fd,
+      });
+      if (!res.ok) throw new Error(`Import failed (${res.status})`);
+      const result = (await res.json()) as ImportResult;
+      if (commit) {
+        setCommitted(result);
+        setPreview(null);
+        onDone();
+      } else {
+        setPreview(result);
+        setCommitted(null);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Import failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const summary = committed ?? preview;
+
+  return (
+    <div className="space-y-3 rounded-md border border-indigo-200 bg-indigo-50/40 p-4">
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <button className={btnLight} onClick={downloadTemplate}>⬇ Download template</button>
+        <input
+          type="file"
+          accept=".xlsx"
+          onChange={(e) => {
+            setFile(e.target.files?.[0] ?? null);
+            setPreview(null);
+            setCommitted(null);
+          }}
+          className="text-xs text-neutral-600 file:mr-2 file:rounded file:border file:border-neutral-300 file:bg-white file:px-2 file:py-1 file:text-xs"
+        />
+        <button className={btnLight} disabled={!file || busy} onClick={() => send(false)}>
+          {busy && !committed ? "Checking…" : "Validate"}
+        </button>
+      </div>
+      <p className="text-xs text-neutral-500">
+        Fill the template’s <b>Vendors</b> and <b>Rates</b> sheets. Imported vendors are
+        saved as <b>prospect</b> (unverified) and rates as <b>on_file</b> — review them
+        afterwards. Validate first to preview; nothing is written until you confirm.
+      </p>
+
+      {error && <p className="text-sm text-red-600">{error}</p>}
+
+      {summary && (
+        <div className="rounded-md border border-neutral-200 bg-white p-3 text-sm">
+          <p className="font-medium text-neutral-800">
+            {committed ? "Imported ✓" : "Preview (nothing written yet)"}
+          </p>
+          <ul className="mt-1 text-xs text-neutral-600">
+            <li>Vendors created: {summary.vendors_created}</li>
+            <li>Vendors matched (existing): {summary.vendors_matched}</li>
+            <li>Rates created: {summary.rates_created}</li>
+            <li>Skipped (overlapping rates): {summary.skipped}</li>
+            <li className={summary.error_count ? "text-amber-700" : ""}>
+              Rows with problems: {summary.error_count}
+            </li>
+          </ul>
+          {summary.errors.length > 0 && (
+            <ul className="mt-2 max-h-40 space-y-0.5 overflow-auto border-t border-neutral-100 pt-2 text-xs text-amber-800">
+              {summary.errors.slice(0, 50).map((e, i) => (
+                <li key={i}>
+                  {e.sheet} row {e.row}: {e.message}
+                </li>
+              ))}
+            </ul>
+          )}
+          {preview && !committed && (
+            <button
+              className={`${btnDark} mt-3`}
+              disabled={busy}
+              onClick={() => send(true)}
+            >
+              {busy ? "Importing…" : `Confirm import (${preview.vendors_created} vendors, ${preview.rates_created} rates)`}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
