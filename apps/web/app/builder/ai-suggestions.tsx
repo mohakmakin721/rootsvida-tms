@@ -57,6 +57,11 @@ export function AiSuggestions({
     if (defaultOrigin) setOrigin(defaultOrigin);
   }, [defaultOrigin]);
   const [days, setDays] = useState(defaultDays && defaultDays > 0 ? String(defaultDays) : "");
+  // Keep Days in step with the travel window set above (end − start): when the dates
+  // change, the day count follows, same as destination/start-point prefill.
+  useEffect(() => {
+    if (defaultDays && defaultDays > 0) setDays(String(defaultDays));
+  }, [defaultDays]);
   const [groupSize, setGroupSize] = useState(defaultGroupSize ? String(defaultGroupSize) : "");
   const [themes, setThemes] = useState<string[]>([]);
   const [tier, setTier] = useState("");
