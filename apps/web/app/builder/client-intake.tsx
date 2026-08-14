@@ -201,6 +201,25 @@ function NewOrExistingIntake({ onChange }: { onChange: (v: IntakeValue) => void 
       .catch(() => setProjectItineraries([]));
   }, [projectMode, selectedProjectId]);
 
+  // ---- prefill the next sequential project code for a brand-new project ----
+  const prefilledCode = useRef(false);
+  useEffect(() => {
+    if (projectMode !== "new" || prefilledCode.current || code.trim()) return;
+    prefilledCode.current = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/v1/projects/next-code", { cache: "no-store" });
+        if (res.ok) {
+          const d = (await res.json()) as { code: string };
+          // Only fill if the user hasn't started typing in the meantime.
+          setCode((cur) => (cur.trim() ? cur : d.code));
+        }
+      } catch {
+        /* best-effort — the field stays empty and editable */
+      }
+    })();
+  }, [projectMode, code]);
+
   // ---- project code availability (debounced) ----
   useEffect(() => {
     if (projectMode !== "new" || !code.trim()) {
@@ -408,7 +427,7 @@ function NewOrExistingIntake({ onChange }: { onChange: (v: IntakeValue) => void 
           <Field label="New project code" required>
             <input
               className={inputCls}
-              placeholder="e.g. TP-JP-01"
+              placeholder="e.g. RV/2026/0001"
               value={code}
               onChange={(e) => setCode(e.target.value)}
             />

@@ -22,6 +22,11 @@ const OCCUPANCY_LABEL: Record<string, string> = {
 };
 const usesMealPlan = (kind: string) => kind === "stay" || kind === "meal";
 const usesOccupancy = (kind: string) => kind === "stay";
+// A guest sleeps / eats / sightsees / needs permits IN the day's city, so those
+// vendors are pinned to that city. Transport, guides and misc can move between
+// cities, so they aren't restricted (any city may show up).
+const IMMOVABLE_KINDS = ["stay", "permit", "activity", "meal"];
+const isCityBound = (kind: string) => IMMOVABLE_KINDS.includes(kind);
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
@@ -77,7 +82,9 @@ export function SupplierRatePicker({
       const params = new URLSearchParams({ limit: "15" });
       if (query.trim()) params.set("q", query.trim());
       params.set("kind", kind); // cost kind === vendor kind
-      if (destinationId) params.set("destination_id", destinationId);
+      // Only the immovable kinds are pinned to the day's city; movable kinds
+      // (transport/guide/misc) search across all cities.
+      if (destinationId && isCityBound(kind)) params.set("destination_id", destinationId);
       try {
         const res = await fetch(`/api/v1/suppliers?${params.toString()}`);
         if (res.ok) setResults(((await res.json()).items as SupplierSummary[]) ?? []);

@@ -19,16 +19,23 @@ export function Combobox({
   onChange,
   placeholder,
   allowClear = true,
+  onCreate,
+  createLabel = "Add",
 }: {
   options: ComboOption[];
   value: string | null;
   onChange: (value: string | null) => void;
   placeholder?: string;
   allowClear?: boolean;
+  /** When set, a "+ Add <query>" row appears if the typed text matches no option;
+   *  it should create the record and resolve to its new value (or null on failure). */
+  onCreate?: (label: string) => Promise<string | null>;
+  createLabel?: string;
 }) {
   const selected = options.find((o) => o.value === value) ?? null;
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -47,6 +54,23 @@ export function Combobox({
           (o.sublabel ?? "").toLowerCase().includes(q),
       )
     : options;
+  const exactMatch = options.some((o) => o.label.trim().toLowerCase() === q);
+  const showCreate = !!onCreate && q.length > 0 && !exactMatch;
+
+  async function handleCreate() {
+    if (!onCreate) return;
+    setCreating(true);
+    try {
+      const id = await onCreate(query.trim());
+      if (id) {
+        onChange(id);
+        setOpen(false);
+        setQuery("");
+      }
+    } finally {
+      setCreating(false);
+    }
+  }
 
   return (
     <div ref={ref} className="relative">
@@ -75,8 +99,20 @@ export function Combobox({
       )}
       {open && (
         <ul className="absolute z-30 mt-1 max-h-56 w-full overflow-auto rounded-md border border-neutral-200 bg-white text-sm shadow-lg">
-          {filtered.length === 0 && (
+          {filtered.length === 0 && !showCreate && (
             <li className="px-3 py-2 text-neutral-400">No matches</li>
+          )}
+          {showCreate && (
+            <li>
+              <button
+                type="button"
+                disabled={creating}
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
+                onClick={handleCreate}
+              >
+                {creating ? "Adding…" : `+ ${createLabel} “${query.trim()}”`}
+              </button>
+            </li>
           )}
           {filtered.map((o) => (
             <li key={o.value}>
