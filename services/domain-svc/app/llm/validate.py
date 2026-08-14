@@ -24,6 +24,8 @@ reported in the returned warnings so the owner sees exactly what was auto-added.
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 from app.llm.schema import DraftBrief, DraftComponent, DraftDay, ItineraryDraft
 
 # Known places whose entry is gated by a non-negotiable permit. Matched (case-
@@ -192,4 +194,35 @@ def enforce_day_categories(
                 "signature experience for a fuller feel."
             )
 
+    _budget_warning(draft, brief, warnings)
     return draft, warnings
+
+
+# Allocations whose estimate_amount is a PER-PERSON figure (multiplied by head-count);
+# everything else is treated as a shared whole-group amount.
+_PER_PAX_ALLOCATIONS = {"per_pax_direct", "by_pax_class"}
+
+
+def _budget_warning(draft: ItineraryDraft, brief: DraftBrief, warnings: list[str]) -> None:
+    """Rough grand-total from the LLM's estimates vs the group's budget. Estimates are
+    unverified (the engine owns real pricing), so this only flags a likely overshoot —
+    it never blocks. Per-person items are multiplied by the traveller count; shared
+    items counted once."""
+    budget = brief.budget_inr
+    if budget is None or budget <= 0:
+        return
+    pax = brief.group_size or 1
+    total = Decimal(0)
+    for day in draft.days:
+        for c in day.components:
+            if c.estimate_amount is None:
+                continue
+            per_pax = (c.allocation or "").strip().lower() in _PER_PAX_ALLOCATIONS
+            total += c.estimate_amount * (pax if per_pax else 1)
+    if total > budget:
+        over = total - budget
+        warnings.append(
+            f"Estimated total ~₹{total:,.0f} exceeds the budget ₹{budget:,.0f} by "
+            f"~₹{over:,.0f} (rough, from unverified estimates) — trim options or flag "
+            "the client before quoting."
+        )

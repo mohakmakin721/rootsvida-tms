@@ -291,10 +291,21 @@ export function ItineraryBuilder({
   // Map an AI draft onto the existing days: append each draft day's components to
   // the day at the same index. Estimates land as override_amount, flagged so the
   // owner reviews/confirms before the numbers are trusted (D-0001 amendment).
-  function applyDraft(draft: AiItineraryDraft) {
+  async function applyDraft(draft: AiItineraryDraft) {
     const alloc: AllocationBasis[] = [
       "all_pax", "by_pax_class", "per_segment", "per_pax_direct", "fixed_group",
     ];
+    // Resolve each day's place → a city id (creating it if new), de-duped, so the
+    // Day rows get their Destination filled in from the draft.
+    const placeToId = new Map<string, string>();
+    for (const d of draft.days) {
+      const place = (d.place || "").trim();
+      const key = place.toLowerCase();
+      if (place && !placeToId.has(key)) {
+        const id = await createDestination(place);
+        if (id) placeToId.set(key, id);
+      }
+    }
     setDays((prev) =>
       prev.map((day, i) => {
         const src = draft.days[i];
@@ -302,6 +313,7 @@ export function ItineraryBuilder({
         // AI components; days it doesn't cover are cleared, so re-running with new
         // inputs never leaves stale suggestions behind.
         if (!src) return { ...day, components: [] };
+        const destId = placeToId.get((src.place || "").trim().toLowerCase()) ?? day.destination_id;
         const mapped: ComponentDraft[] = src.components.map((c) => ({
           kind: (KINDS as string[]).includes(c.kind) ? (c.kind as ComponentKind) : "misc",
           description: c.notes ? `${c.title} — ${c.notes}` : c.title,
@@ -317,7 +329,7 @@ export function ItineraryBuilder({
           rate_label: null,
           rate_amount: null,
         }));
-        return { ...day, components: mapped };
+        return { ...day, destination_id: destId, components: mapped };
       }),
     );
   }

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 from app.llm import enforce_day_categories
 from app.llm.schema import DraftBrief, DraftComponent, DraftDay, ItineraryDraft
 
@@ -69,6 +71,39 @@ def test_idempotent() -> None:
     twice, _ = enforce_day_categories(once, DraftBrief(destination="Amritsar", origin="Delhi"))
     n2 = sum(len(d.components) for d in twice.days)
     assert n1 == n2
+
+
+def test_budget_warning_when_estimates_exceed_budget() -> None:
+    day = DraftDay(
+        day_number=1, title="D1", place="Bangkok", narrative="…",
+        components=[
+            DraftComponent(kind="transport", title="Flight DEL→BKK",
+                           allocation="per_pax_direct", estimate_amount=Decimal("20000")),
+            DraftComponent(kind="stay", title="Hotel", allocation="all_pax",
+                           estimate_amount=Decimal("8000")),
+        ],
+    )
+    draft = _draft(day, _day(2, "Bangkok", "meal", "transport"))
+    # 5 pax → flight 20000×5 + stay 8000 = 108000 > budget 50000
+    _, warns = enforce_day_categories(
+        draft, DraftBrief(destination="Bangkok", group_size=5,
+                          budget_inr=Decimal("50000")),
+    )
+    assert any("exceeds the budget" in w for w in warns)
+
+
+def test_no_budget_warning_when_within_budget() -> None:
+    day = DraftDay(
+        day_number=1, title="D1", place="Jaipur", narrative="…",
+        components=[DraftComponent(kind="transport", title="Cab", allocation="all_pax",
+                                   estimate_amount=Decimal("3000"))],
+    )
+    draft = _draft(day, _day(2, "Jaipur", "meal", "transport"))
+    _, warns = enforce_day_categories(
+        draft, DraftBrief(destination="Jaipur", group_size=4,
+                          budget_inr=Decimal("500000")),
+    )
+    assert not any("exceeds the budget" in w for w in warns)
 
 
 def test_visa_warning_for_international() -> None:
