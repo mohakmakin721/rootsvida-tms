@@ -15,6 +15,7 @@ dependencies = [
     "structlog>=24.4",
     "openpyxl>=3.1",
     "reportlab>=4.2",
+    "python-multipart>=0.0.12",  # FastAPI file uploads (bulk vendor import)
 ]
 
 [project.optional-dependencies]
