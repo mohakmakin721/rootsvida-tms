@@ -50,7 +50,21 @@ RATE_COLUMNS = [
 _KINDS = {k.value for k in SupplierKind}
 _STATUSES = {"prospect", "active", "contacted", "blacklisted"}
 _MEAL_PLANS = {m.value for m in MealPlan}
-_OCCUPANCIES = {o.value for o in Occupancy}
+
+# Room occupancies offered in the template — the friendly stay vocabulary, NOT the
+# full Occupancy enum (which also has child_nb/child_wb child-pricing values that
+# don't belong on a room-rate import). The label shown maps to the DB enum value.
+TEMPLATE_OCCUPANCIES = ["single", "double", "triple", "extra bed", "twin bed"]
+_OCCUPANCY_ALIASES: dict[str, str] = {
+    "single": Occupancy.SINGLE.value,
+    "double": Occupancy.DOUBLE.value,
+    "triple": Occupancy.TRIPLE.value,
+    "extra bed": Occupancy.EXTRA_ADULT.value,
+    "extra": Occupancy.EXTRA_ADULT.value,
+    "extra_adult": Occupancy.EXTRA_ADULT.value,
+    "twin bed": Occupancy.TWIN.value,
+    "twin": Occupancy.TWIN.value,
+}
 _RATE_SOURCES = {r.value for r in RateSource}
 
 
@@ -182,9 +196,12 @@ def validate_rate_row(row: dict[str, object]) -> tuple[RateRow | None, str | Non
     meal_plan = (_s(row.get("meal_plan")) or "EP").upper()
     if meal_plan not in _MEAL_PLANS:
         return None, f"meal_plan {meal_plan!r} must be one of {sorted(_MEAL_PLANS)}"
-    occupancy = (_s(row.get("occupancy")) or "single").lower()
-    if occupancy not in _OCCUPANCIES:
-        return None, f"occupancy {occupancy!r} must be one of {sorted(_OCCUPANCIES)}"
+    occ_raw = (_s(row.get("occupancy")) or "double").lower()
+    occupancy = _OCCUPANCY_ALIASES.get(occ_raw)
+    if occupancy is None:
+        return None, (
+            f"occupancy {occ_raw!r} must be one of: " + ", ".join(TEMPLATE_OCCUPANCIES)
+        )
     source = (_s(row.get("rate_source")) or "b2b").lower()
     if source not in _RATE_SOURCES:
         return None, f"rate_source {source!r} must be one of {sorted(_RATE_SOURCES)}"
@@ -252,7 +269,7 @@ def build_template() -> bytes:
         ["  amount*", "number, INR by default"],
         ["  valid_from* / valid_to*", "YYYY-MM-DD"],
         ["  meal_plan", "stay/meal only: " + ", ".join(sorted(_MEAL_PLANS)) + " (default EP)"],
-        ["  occupancy", "stay only: " + ", ".join(sorted(_OCCUPANCIES)) + " (default single)"],
+        ["  occupancy", "stay only: " + ", ".join(TEMPLATE_OCCUPANCIES) + " (default double)"],
         ["  currency", "3-letter code (default INR)"],
         ["  min_nights", "whole number (default 1)"],
         ["  rate_source", "one of: " + ", ".join(sorted(_RATE_SOURCES)) + " (default b2b)"],
@@ -278,7 +295,7 @@ def build_template() -> bytes:
     vendor_lists = {"kind": sorted(_KINDS), "status": sorted(_STATUSES)}
     rate_lists = {
         "meal_plan": sorted(_MEAL_PLANS),
-        "occupancy": sorted(_OCCUPANCIES),
+        "occupancy": TEMPLATE_OCCUPANCIES,
         "rate_source": sorted(_RATE_SOURCES),
     }
 

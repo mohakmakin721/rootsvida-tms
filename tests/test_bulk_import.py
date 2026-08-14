@@ -42,7 +42,7 @@ def test_valid_rate_defaults() -> None:
     })
     assert err is None and clean is not None
     assert clean.amount == Decimal("5000")
-    assert clean.meal_plan == "EP" and clean.occupancy == "single"
+    assert clean.meal_plan == "EP" and clean.occupancy == "double"  # default double
     assert clean.currency == "INR" and clean.rate_source == "b2b"
     assert clean.valid_from == date(2026, 1, 1)
 
@@ -65,6 +65,22 @@ def test_rate_accepts_twin_occupancy() -> None:
         "valid_from": "2026-01-01", "valid_to": "2026-01-02",
     })
     assert err is None and clean is not None and clean.occupancy == "twin"
+
+
+def test_rate_occupancy_friendly_labels_map_to_enum() -> None:
+    # "extra bed" / "twin bed" (as shown in the template) map to the DB enum values.
+    for label, value in [("extra bed", "extra_adult"), ("twin bed", "twin")]:
+        clean, err = bi.validate_rate_row({
+            "vendor_display_name": "X", "amount": "1", "occupancy": label,
+            "valid_from": "2026-01-01", "valid_to": "2026-01-02",
+        })
+        assert err is None and clean is not None and clean.occupancy == value
+    # child_nb / child_wb are NOT offered on the room-rate template.
+    _, err = bi.validate_rate_row({
+        "vendor_display_name": "X", "amount": "1", "occupancy": "child_nb",
+        "valid_from": "2026-01-01", "valid_to": "2026-01-02",
+    })
+    assert err and "must be one of" in err
 
 
 def test_rate_accepts_datetime_and_alt_date_format() -> None:
