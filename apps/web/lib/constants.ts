@@ -38,7 +38,6 @@ export function inr(v: string | number): string {
 export const ACCOMMODATION_TIERS = [
   "Homestays",
   "Hostels",
-  "Hotels",
   "2 Star",
   "3 Star",
   "4 Star",
