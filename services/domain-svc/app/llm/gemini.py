@@ -12,10 +12,31 @@ deterministic engine owns all totals.
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 from app.llm.base import LLMProvider
 from app.llm.schema import DraftBrief, IntakeParse, ItineraryDraft
+
+# Transient Gemini failures worth retrying: model overloaded (503), server errors,
+# and rate limits. The model "high demand / UNAVAILABLE" 503 is common on the flash
+# tier and usually clears within a second or two.
+_TRANSIENT_CODES = {429, 500, 502, 503, 504}
+_TRANSIENT_MARKERS = (
+    "unavailable", "overloaded", "high demand", "try again later",
+    "resource_exhausted", "internal error", "deadline",
+)
+_RETRY_ATTEMPTS = 4       # total tries per call
+_RETRY_BASE_DELAY = 1.0   # seconds; exponential backoff 1s, 2s, 4s
+
+
+def _is_transient(exc: Exception) -> bool:
+    """True for retryable Gemini errors (overload / 5xx / rate limit)."""
+    code = getattr(exc, "code", None) or getattr(exc, "status_code", None)
+    if isinstance(code, int) and code in _TRANSIENT_CODES:
+        return True
+    text = str(exc).lower()
+    return any(marker in text for marker in _TRANSIENT_MARKERS)
 
 _SYSTEM = (
     "You are RootsVida's itinerary designer. Draft small-group, culturally immersive "
@@ -150,16 +171,35 @@ class GeminiProvider(LLMProvider):
         from google.genai import types  # lazy
 
         client = self._client()
-        resp = client.models.generate_content(
-            model=self.model,
-            contents=[prompt],
-            config=types.GenerateContentConfig(
-                system_instruction=_SYSTEM,
-                response_mime_type="application/json",
-                response_schema=schema,
-            ),
+        config = types.GenerateContentConfig(
+            system_instruction=_SYSTEM,
+            response_mime_type="application/json",
+            response_schema=schema,
         )
-        return str(resp.text)
+
+        def call() -> str:
+            resp = client.models.generate_content(
+                model=self.model, contents=[prompt], config=config
+            )
+            return str(resp.text)
+
+        return self._with_retry(call)
+
+    def _with_retry(self, call: Any) -> str:
+        """Run a generate call, retrying transient failures (503 overload, 5xx, rate
+        limits) with exponential backoff. The last error propagates so the API layer
+        can surface it."""
+        last: Exception | None = None
+        for attempt in range(_RETRY_ATTEMPTS):
+            try:
+                return str(call())
+            except Exception as exc:  # noqa: BLE001 — classify then re-raise if fatal
+                last = exc
+                if not _is_transient(exc) or attempt == _RETRY_ATTEMPTS - 1:
+                    raise
+                time.sleep(_RETRY_BASE_DELAY * (2**attempt))
+        assert last is not None  # unreachable; loop either returns or raises
+        raise last
 
     def _research(self, brief: DraftBrief) -> tuple[str, list[str]]:
         """Option A grounding pass: search Google for live costs and return

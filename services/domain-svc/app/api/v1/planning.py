@@ -11,7 +11,9 @@ the deterministic stub unless Gemini is configured — so they work with no key.
 
 from __future__ import annotations
 
+import logging
 import uuid
+from collections.abc import Callable
 from datetime import date
 from decimal import Decimal
 
@@ -26,6 +28,22 @@ from app.models import ItineraryIntake
 from app.services import planning
 
 router = APIRouter(prefix="/planning", tags=["planning"])
+
+_log = logging.getLogger("rootsvida.planning")
+
+
+def _run_llm[T](what: str, fn: Callable[[], T]) -> T:
+    """Run an LLM-backed call, turning any failure into a readable 502 (with the real
+    provider error) instead of an opaque 500 — and logging the full traceback so the
+    cause (quota, billing, bad key, model error) is visible in the server logs."""
+    try:
+        return fn()
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001 — surface every provider failure cleanly
+        _log.exception("planning %s failed", what)
+        detail = f"AI provider error during {what}: {type(exc).__name__}: {exc}"
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail=detail[:400]) from exc
 
 
 class IntakeIn(BaseModel):
@@ -118,7 +136,7 @@ def parse_intake(
     _org_id: uuid.UUID = Depends(current_org_id),
 ) -> IntakeParse:
     """Parse a pasted client-form response into structured fields (LLM/stub)."""
-    return get_provider().parse_intake(body.text)
+    return _run_llm("parse", lambda: get_provider().parse_intake(body.text))
 
 
 @router.post("/suggest", response_model=planning.SuggestResult)
@@ -128,7 +146,7 @@ def suggest(
     org_id: uuid.UUID = Depends(current_org_id),
 ) -> planning.SuggestResult:
     """Rank DB candidates by the intake's priorities and return an itinerary draft."""
-    return planning.suggest(
+    return _run_llm("suggest", lambda: planning.suggest(
         session, org_id,
         destination=body.destination, origin=body.origin,
         duration_days=body.duration_days,
@@ -136,7 +154,7 @@ def suggest(
         budget_inr=body.budget_inr, age_band=body.age_band, transport=body.transport,
         segments=[s.model_dump() for s in body.segments],
         notes=body.notes,
-    )
+    ))
 
 
 @router.post("/refine", response_model=planning.SuggestResult)
@@ -146,7 +164,7 @@ def refine(
     org_id: uuid.UUID = Depends(current_org_id),
 ) -> planning.SuggestResult:
     """Follow-up chat: apply a free-text change to an existing draft and return it."""
-    return planning.refine(
+    return _run_llm("refine", lambda: planning.refine(
         session, org_id,
         draft=body.draft, instruction=body.instruction,
         destination=body.destination, origin=body.origin,
@@ -155,4 +173,4 @@ def refine(
         budget_inr=body.budget_inr, age_band=body.age_band, transport=body.transport,
         segments=[s.model_dump() for s in body.segments],
         notes=body.notes,
-    )
+    ))

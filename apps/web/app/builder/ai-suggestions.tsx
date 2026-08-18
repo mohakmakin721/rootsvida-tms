@@ -25,6 +25,20 @@ function toggle(list: string[], value: string): string[] {
   return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
 }
 
+/** Build a readable error from a failed response — prefer the API's `detail`
+ *  (e.g. an AI provider/quota message) over a bare status code. */
+async function errorDetail(res: Response, label: string): Promise<string> {
+  try {
+    const body = (await res.json()) as { detail?: unknown };
+    if (typeof body.detail === "string" && body.detail.trim()) {
+      return `${label} failed: ${body.detail}`;
+    }
+  } catch {
+    /* no JSON body */
+  }
+  return `${label} failed (${res.status})`;
+}
+
 export function AiSuggestions({
   defaultDays,
   defaultGroupSize,
@@ -102,7 +116,7 @@ export function AiSuggestions({
         headers: { "content-type": "application/json" },
         body: JSON.stringify(briefBody()),
       });
-      if (!res.ok) throw new Error(`Suggest failed (${res.status})`);
+      if (!res.ok) throw new Error(await errorDetail(res, "Suggest"));
       setResult((await res.json()) as SuggestResult);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not get suggestions.");
@@ -123,7 +137,7 @@ export function AiSuggestions({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ ...briefBody(), draft: result.draft, instruction }),
       });
-      if (!res.ok) throw new Error(`Refine failed (${res.status})`);
+      if (!res.ok) throw new Error(await errorDetail(res, "Refine"));
       setResult((await res.json()) as SuggestResult);
       setChatLog((log) => [...log, instruction]);
       setRefineMsg("");
