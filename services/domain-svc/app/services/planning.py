@@ -166,27 +166,24 @@ def _summarize_segments(
     return total, has_foreign, pax_summary, occupancy_summary
 
 
-def suggest(
+def _prepare(
     session: Session,
     org_id: uuid.UUID,
     *,
-    destination: str | None = None,
-    origin: str | None = None,
-    duration_days: int | None = None,
-    group_size: int | None = None,
-    themes: Sequence[str] = (),
-    tier: str | None = None,
-    budget_inr: Decimal | None = None,
-    age_band: str | None = None,
-    transport: Sequence[str] = (),
-    segments: Sequence[dict[str, object]] = (),
-    notes: str | None = None,
-) -> SuggestResult:
-    """Intake → weights → ranked DB candidates → LLM draft. The heart of the panel.
-
-    Traveller groups (pax class / occupancy / counts) refine the true group size, the
-    weights, and the brief the model reasons over (foreign vs Indian ticket/guide
-    rates; accommodation suited to the occupancy mix)."""
+    destination: str | None,
+    origin: str | None,
+    duration_days: int | None,
+    group_size: int | None,
+    themes: Sequence[str],
+    tier: str | None,
+    budget_inr: Decimal | None,
+    age_band: str | None,
+    transport: Sequence[str],
+    segments: Sequence[dict[str, object]],
+    notes: str | None,
+) -> tuple[dict[str, float], list[DraftCandidate], DraftBrief]:
+    """Shared front half of suggest/refine: intake → weights + ranked DB candidates +
+    the full DraftBrief the model reasons over."""
     seg_size, has_foreign, pax_summary, occupancy_summary = _summarize_segments(segments)
     group_size = seg_size or group_size
     signals = IntakeSignals(
@@ -231,14 +228,76 @@ def suggest(
         notes=notes or "",
         candidates=draft_candidates,
     )
+    weights_dict = {p.value: w for p, w in weights.items()}
+    return weights_dict, draft_candidates, brief
+
+
+def suggest(
+    session: Session,
+    org_id: uuid.UUID,
+    *,
+    destination: str | None = None,
+    origin: str | None = None,
+    duration_days: int | None = None,
+    group_size: int | None = None,
+    themes: Sequence[str] = (),
+    tier: str | None = None,
+    budget_inr: Decimal | None = None,
+    age_band: str | None = None,
+    transport: Sequence[str] = (),
+    segments: Sequence[dict[str, object]] = (),
+    notes: str | None = None,
+) -> SuggestResult:
+    """Intake → weights → ranked DB candidates → LLM draft. The heart of the panel.
+
+    Traveller groups (pax class / occupancy / counts) refine the true group size, the
+    weights, and the brief the model reasons over (foreign vs Indian ticket/guide
+    rates; accommodation suited to the occupancy mix)."""
+    weights, candidates, brief = _prepare(
+        session, org_id, destination=destination, origin=origin,
+        duration_days=duration_days, group_size=group_size, themes=themes, tier=tier,
+        budget_inr=budget_inr, age_band=age_band, transport=transport,
+        segments=segments, notes=notes,
+    )
     draft = get_provider().draft(brief)
     # Deterministic net: guarantee every day has its required categories (stay/meal/
     # transport, main legs, known permits) regardless of what the LLM returned.
     draft, warnings = enforce_day_categories(draft, brief)
-
     return SuggestResult(
-        weights={p.value: w for p, w in weights.items()},
-        candidates=draft_candidates,
-        draft=draft,
-        warnings=warnings,
+        weights=weights, candidates=candidates, draft=draft, warnings=warnings
+    )
+
+
+def refine(
+    session: Session,
+    org_id: uuid.UUID,
+    *,
+    draft: ItineraryDraft,
+    instruction: str,
+    destination: str | None = None,
+    origin: str | None = None,
+    duration_days: int | None = None,
+    group_size: int | None = None,
+    themes: Sequence[str] = (),
+    tier: str | None = None,
+    budget_inr: Decimal | None = None,
+    age_band: str | None = None,
+    transport: Sequence[str] = (),
+    segments: Sequence[dict[str, object]] = (),
+    notes: str | None = None,
+) -> SuggestResult:
+    """Apply a free-text change request to an existing draft (the follow-up chat).
+
+    Rebuilds the same brief as suggest (so budget/pax/candidates still apply), asks the
+    provider to edit the draft, then runs the same deterministic category/budget net."""
+    weights, candidates, brief = _prepare(
+        session, org_id, destination=destination, origin=origin,
+        duration_days=duration_days, group_size=group_size, themes=themes, tier=tier,
+        budget_inr=budget_inr, age_band=age_band, transport=transport,
+        segments=segments, notes=notes,
+    )
+    updated = get_provider().refine(brief, draft, instruction)
+    updated, warnings = enforce_day_categories(updated, brief)
+    return SuggestResult(
+        weights=weights, candidates=candidates, draft=updated, warnings=warnings
     )

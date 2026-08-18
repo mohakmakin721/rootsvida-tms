@@ -23,3 +23,11 @@ class LLMProvider(ABC):
     @abstractmethod
     def draft(self, brief: DraftBrief) -> ItineraryDraft:
         """Turn a brief + ranked candidates into a structured itinerary draft."""
+
+    def refine(
+        self, brief: DraftBrief, draft: ItineraryDraft, instruction: str
+    ) -> ItineraryDraft:
+        """Apply a free-text change request to an existing draft, returning the
+        updated draft. Default is a no-op (providers without chat just echo the draft);
+        GeminiProvider overrides it."""
+        return draft

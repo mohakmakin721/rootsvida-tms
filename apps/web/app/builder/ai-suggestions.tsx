@@ -74,24 +74,33 @@ export function AiSuggestions({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [applied, setApplied] = useState(false);
+  // Follow-up "refine" chat: the text box + a running log of change requests.
+  const [refineMsg, setRefineMsg] = useState("");
+  const [refining, setRefining] = useState(false);
+  const [chatLog, setChatLog] = useState<string[]>([]);
+
+  function briefBody() {
+    return {
+      destination: destination || null,
+      origin: origin || null,
+      duration_days: days ? Number(days) : null,
+      group_size: groupSize ? Number(groupSize) : null,
+      themes, tier: tier || null, budget_inr: budget || null,
+      age_band: ageBand || null, transport,
+      segments, notes: notes || null,
+    };
+  }
 
   async function getSuggestions() {
     setLoading(true);
     setError(null);
     setApplied(false);
+    setChatLog([]);
     try {
       const res = await fetch("/api/v1/planning/suggest", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          destination: destination || null,
-          origin: origin || null,
-          duration_days: days ? Number(days) : null,
-          group_size: groupSize ? Number(groupSize) : null,
-          themes, tier: tier || null, budget_inr: budget || null,
-          age_band: ageBand || null, transport,
-          segments, notes: notes || null,
-        }),
+        body: JSON.stringify(briefBody()),
       });
       if (!res.ok) throw new Error(`Suggest failed (${res.status})`);
       setResult((await res.json()) as SuggestResult);
@@ -99,6 +108,29 @@ export function AiSuggestions({
       setError(e instanceof Error ? e.message : "Could not get suggestions.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function refineDraft() {
+    const instruction = refineMsg.trim();
+    if (!instruction || !result) return;
+    setRefining(true);
+    setError(null);
+    setApplied(false);
+    try {
+      const res = await fetch("/api/v1/planning/refine", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...briefBody(), draft: result.draft, instruction }),
+      });
+      if (!res.ok) throw new Error(`Refine failed (${res.status})`);
+      setResult((await res.json()) as SuggestResult);
+      setChatLog((log) => [...log, instruction]);
+      setRefineMsg("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not apply the change.");
+    } finally {
+      setRefining(false);
     }
   }
 
@@ -340,6 +372,34 @@ export function AiSuggestions({
                     </ul>
                   </div>
                 )}
+              </div>
+
+              {/* follow-up refine chat — tweak the draft in plain English */}
+              <div className="rounded-md border border-indigo-200 bg-indigo-50/40 p-3">
+                <p className="text-xs font-medium text-indigo-900">
+                  Ask for changes — the AI updates the draft above
+                </p>
+                {chatLog.length > 0 && (
+                  <ul className="mt-1 space-y-0.5 text-xs text-neutral-600">
+                    {chatLog.map((m, i) => <li key={i}>· {m}</li>)}
+                  </ul>
+                )}
+                <div className="mt-2 flex gap-2">
+                  <input
+                    value={refineMsg}
+                    onChange={(e) => setRefineMsg(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") refineDraft(); }}
+                    placeholder="e.g. make day 2 lunch a street-food walk; cheaper hotels; add a spa evening"
+                    className="flex-1 rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-sm text-neutral-900 placeholder:text-neutral-400"
+                  />
+                  <button
+                    onClick={refineDraft}
+                    disabled={refining || !refineMsg.trim()}
+                    className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    {refining ? "Updating…" : "Send"}
+                  </button>
+                </div>
               </div>
 
               <button

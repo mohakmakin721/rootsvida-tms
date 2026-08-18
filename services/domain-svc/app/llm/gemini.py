@@ -253,6 +253,25 @@ class GeminiProvider(LLMProvider):
             result.sources = list(dict.fromkeys([*result.sources, *sources]))
         return result
 
+    def refine(
+        self, brief: DraftBrief, draft: ItineraryDraft, instruction: str
+    ) -> ItineraryDraft:
+        """Apply the owner's free-text change to an existing draft and return the whole
+        updated ItineraryDraft (same schema). Keeps everything not mentioned intact,
+        obeys the same rules (per-day categories, allocation, budget) as a fresh draft."""
+        prompt = (
+            "Here is an existing itinerary DRAFT and a CHANGE REQUEST from the owner. "
+            "Apply the change and return the COMPLETE updated ItineraryDraft (same "
+            "schema). Change ONLY what the request implies; keep everything else exactly "
+            "as it is (same days, titles, components, estimates) unless the change makes "
+            "them inconsistent. Keep obeying the per-day category, allocation "
+            "(per-person vs shared) and budget rules.\n\n"
+            f"BRIEF:\n{brief.model_dump_json(indent=2)}\n\n"
+            f"CURRENT DRAFT:\n{draft.model_dump_json(indent=2)}\n\n"
+            f"CHANGE REQUEST:\n{instruction}"
+        )
+        return ItineraryDraft.model_validate_json(self._generate(prompt, ItineraryDraft))
+
     def _review(self, brief: DraftBrief, draft: ItineraryDraft) -> ItineraryDraft:
         """Second pass: the model critiques its own draft against the brief and fixes
         gaps a one-shot flash model tends to miss (long-haul flights, must-includes,

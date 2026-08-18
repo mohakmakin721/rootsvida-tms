@@ -6,10 +6,8 @@ import io
 from datetime import date
 from decimal import Decimal
 
-from openpyxl import Workbook, load_workbook
-
 from app.services import bulk_import as bi
-
+from openpyxl import Workbook, load_workbook
 
 # --- vendor row validation ---
 

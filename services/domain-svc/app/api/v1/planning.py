@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import current_org_id
 from app.db import get_session
-from app.llm import IntakeParse, get_provider
+from app.llm import IntakeParse, ItineraryDraft, get_provider
 from app.models import ItineraryIntake
 from app.services import planning
 
@@ -81,6 +81,13 @@ class SuggestIn(BaseModel):
     notes: str | None = None  # planning constraints / include-exclude points
 
 
+class RefineIn(SuggestIn):
+    """A follow-up change to an existing draft: the current draft + a free-text ask."""
+
+    draft: ItineraryDraft
+    instruction: str
+
+
 @router.post("/intakes", response_model=IntakeOut, status_code=status.HTTP_201_CREATED)
 def create_intake(
     body: IntakeIn,
@@ -123,6 +130,25 @@ def suggest(
     """Rank DB candidates by the intake's priorities and return an itinerary draft."""
     return planning.suggest(
         session, org_id,
+        destination=body.destination, origin=body.origin,
+        duration_days=body.duration_days,
+        group_size=body.group_size, themes=body.themes, tier=body.tier,
+        budget_inr=body.budget_inr, age_band=body.age_band, transport=body.transport,
+        segments=[s.model_dump() for s in body.segments],
+        notes=body.notes,
+    )
+
+
+@router.post("/refine", response_model=planning.SuggestResult)
+def refine(
+    body: RefineIn,
+    session: Session = Depends(get_session),
+    org_id: uuid.UUID = Depends(current_org_id),
+) -> planning.SuggestResult:
+    """Follow-up chat: apply a free-text change to an existing draft and return it."""
+    return planning.refine(
+        session, org_id,
+        draft=body.draft, instruction=body.instruction,
         destination=body.destination, origin=body.origin,
         duration_days=body.duration_days,
         group_size=body.group_size, themes=body.themes, tier=body.tier,

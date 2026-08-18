@@ -89,3 +89,9 @@ def test_draft_round_trips_through_schema() -> None:
 def test_parse_intake_preserves_raw() -> None:
     p = StubProvider().parse_intake("Budget: 300000\nDays: 5")
     assert p.raw == "Budget: 300000\nDays: 5"
+
+
+def test_refine_defaults_to_noop() -> None:
+    # Providers without a chat model (the stub) return the draft unchanged.
+    draft = StubProvider().draft(_brief(days=2))
+    assert StubProvider().refine(_brief(days=2), draft, "make it cheaper") == draft
