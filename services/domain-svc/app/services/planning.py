@@ -23,9 +23,11 @@ from app.llm import (
     DraftBrief,
     DraftCandidate,
     ItineraryDraft,
+    StubProvider,
     enforce_day_categories,
     get_provider,
 )
+from app.llm.gemini import _is_transient
 from app.models import Destination, Supplier
 from app.models.enums import SupplierKind
 from app.planning import (
@@ -40,6 +42,12 @@ from app.planning import (
 # Kinds we pull as candidates for a draft (stays + the main experience kinds).
 _DEFAULT_KINDS = (
     SupplierKind.STAY, SupplierKind.ACTIVITY, SupplierKind.GUIDE, SupplierKind.MEAL,
+)
+
+# Shown when the LLM is transiently unavailable and we fall back to the stub draft.
+_BUSY_WARNING = (
+    "The AI service was momentarily busy — showing a basic auto-built draft. Click "
+    "Get AI suggestions again in a minute for a full AI version."
 )
 
 
@@ -259,12 +267,19 @@ def suggest(
         budget_inr=budget_inr, age_band=age_band, transport=transport,
         segments=segments, notes=notes,
     )
-    draft = get_provider().draft(brief)
+    extra: list[str] = []
+    try:
+        draft = get_provider().draft(brief)
+    except Exception as exc:  # noqa: BLE001 — degrade on transient provider outages
+        if not _is_transient(exc):
+            raise  # config/fatal errors still surface (→ readable 502)
+        draft = StubProvider().draft(brief)  # rule-based draft from the candidates
+        extra = [_BUSY_WARNING]
     # Deterministic net: guarantee every day has its required categories (stay/meal/
     # transport, main legs, known permits) regardless of what the LLM returned.
     draft, warnings = enforce_day_categories(draft, brief)
     return SuggestResult(
-        weights=weights, candidates=candidates, draft=draft, warnings=warnings
+        weights=weights, candidates=candidates, draft=draft, warnings=extra + warnings
     )
 
 
@@ -296,8 +311,15 @@ def refine(
         budget_inr=budget_inr, age_band=age_band, transport=transport,
         segments=segments, notes=notes,
     )
-    updated = get_provider().refine(brief, draft, instruction)
+    extra: list[str] = []
+    try:
+        updated = get_provider().refine(brief, draft, instruction)
+    except Exception as exc:  # noqa: BLE001 — degrade on transient provider outages
+        if not _is_transient(exc):
+            raise
+        updated = draft  # keep the current draft unchanged
+        extra = ["The AI service was momentarily busy — draft unchanged; try again."]
     updated, warnings = enforce_day_categories(updated, brief)
     return SuggestResult(
-        weights=weights, candidates=candidates, draft=updated, warnings=warnings
+        weights=weights, candidates=candidates, draft=updated, warnings=extra + warnings
     )
