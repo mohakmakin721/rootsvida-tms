@@ -76,8 +76,9 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     rv_gemini_model: str = "gemini-flash-latest"  # always-current alias; override in env
     # Second "review & repair" pass on each draft (better adherence/realism, but
-    # doubles LLM calls). On by default; set false to conserve free-tier quota.
-    rv_llm_review: bool = True
+    # doubles LLM calls → twice the exposure to free-tier rate limits / 503 overloads).
+    # OFF by default to keep suggestions to a single call; set true for extra polish.
+    rv_llm_review: bool = False
     # Ground drafts on live Google Search (Option A). When true, the Gemini provider
     # runs a web-search research pass first (current fares/tickets/visa/permit costs +
     # citation URLs) and folds those figures into the draft. Off by default: it uses
